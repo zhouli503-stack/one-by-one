@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>演示预约系统</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/zh-cn.global.min.js"></script>
+  <script src="../config.js"></script>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div id="app">
+    <!-- ===== 加载中（优先显示，避免登录页闪烁） ===== -->
+    <div v-if="page === 'loading'" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg-primary);flex-direction:column;gap:16px;">
+      <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--a-mid);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      <p style="color:var(--text-tertiary);font-size:14px;">加载中...</p>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+    <!-- ===== 登录页 ===== -->
+    <div v-if="page === 'login'" class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg-primary);padding:20px;">
+      <div class="auth-card" style="max-width:420px;width:100%;background:var(--bg-card);border-radius:var(--radius-xl);padding:40px;box-shadow:var(--shadow-lg);border:1px solid var(--border);">
+        <div class="auth-header" style="text-align:center;margin-bottom:24px;">
+          <h1 style="font-size:24px;font-weight:600;">演示预约系统</h1>
+          <p style="color:var(--text-tertiary);font-size:13px;">tea-pulse 统一登录</p>
+        </div>
+        <div class="notice-banner">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。</div>
+        <div class="form-group"><label>登录名</label><input v-model="loginForm.login_name" type="text" placeholder="输入登录名" @keyup.enter="doLogin"/></div>
+        <div class="form-group"><label>密码</label><input v-model="loginForm.password" type="password" placeholder="输入密码" @keyup.enter="doLogin"/></div>
+        <div v-if="authError" style="background:rgba(239,68,68,0.1);color:var(--danger);padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;">{{ authError }}</div>
+        <button class="btn btn-primary btn-full" @click="doLogin" :disabled="authLoading">{{ authLoading?'登录中...':'登 录' }}</button>
+        <p style="text-align:center;margin-top:16px;color:var(--text-tertiary);font-size:13px;">还没有账号？<a href="#" @click.prevent="page='register'" style="color:var(--a-mid);font-weight:500;">立即注册</a></p>
+        <div style="text-align:center;padding-top:20px;margin-top:16px;border-top:1px solid var(--border-light);color:var(--text-tertiary);font-size:11px;">© 2026 周力1000365 版权所有</div>
+      </div>
+    </div>
+
+    <!-- ===== 注册页 ===== -->
+    <div v-if="page === 'register'" class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg-primary);padding:20px;">
+      <div class="auth-card" style="max-width:460px;width:100%;background:var(--bg-card);border-radius:var(--radius-xl);padding:40px;box-shadow:var(--shadow-lg);border:1px solid var(--border);">
+        <div class="auth-header" style="text-align:center;margin-bottom:24px;">
+          <h1 style="font-size:24px;font-weight:600;">注册新账号</h1>
+          <p style="color:var(--text-tertiary);font-size:13px;">请填写以下信息完成注册</p>
+        </div>
+        <div class="notice-banner">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。</div>
+        <div class="form-row"><div class="form-group"><label>登录名 *</label><input v-model="regForm.login_name" type="text" placeholder="用于登录"/></div><div class="form-group"><label>密码 *</label><input v-model="regForm.password" type="password" placeholder="至少6位"/></div></div>
+        <div class="form-row"><div class="form-group"><label>姓名 *</label><input v-model="regForm.full_name" type="text" placeholder="真实姓名"/></div><div class="form-group"><label>工号 *</label><input v-model="regForm.employee_id" type="text" placeholder="员工编号"/></div></div>
+        <div class="form-group"><label>部门 *</label><input v-model="regForm.department" type="text" placeholder="所属部门"/></div>
+        <div class="form-row"><div class="form-group"><label>销售事业部</label><input v-model="regForm.division" type="text" placeholder="事业部名称"/></div><div class="form-group"><label>销售片区</label><input v-model="regForm.region" type="text" placeholder="所属片区"/></div></div>
+        <div v-if="authError" style="background:rgba(239,68,68,0.1);color:var(--danger);padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;">{{ authError }}</div>
+        <button class="btn btn-primary btn-full" @click="doRegister" :disabled="authLoading">{{ authLoading?'注册中...':'注 册'}}</button>
+        <p style="text-align:center;margin-top:16px;color:var(--text-tertiary);font-size:13px;">已有账号？<a href="#" @click.prevent="page='login'" style="color:var(--a-mid);font-weight:500;">返回登录</a></p>
+        <div style="text-align:center;padding-top:20px;margin-top:16px;border-top:1px solid var(--border-light);color:var(--text-tertiary);font-size:11px;">© 2026 周力1000365 版权所有</div>
+      </div>
+    </div>
+
+    <!-- ===== 主应用布局 ===== -->
+    <div v-if="isLoggedIn" :class="['app-layout',viewMode==='mobile'?'mobile-view':'desktop-view']">
+
+      <!-- 移动端顶部 -->
+      <div v-if="viewMode==='mobile'" class="mobile-topbar">
+        <button class="mobile-menu-btn" @click="showMobileNav=!showMobileNav">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="mobile-title">演示预约</div>
+        <div class="mobile-top-right">
+          <button class="btn-icon" @click="toggleViewMode" title="桌面版">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 移动端侧滑 -->
+      <div v-if="viewMode==='mobile'&&showMobileNav" class="mobile-nav-overlay" @click="showMobileNav=false">
+        <aside class="mobile-nav-panel" @click.stop>
+          <div class="mobile-nav-header">
+            <div class="user-info-mini">
+              <div class="user-avatar">{{ userProfile?.full_name?.charAt(0)||'U' }}</div>
+              <div class="user-meta"><div class="user-name">{{ userProfile?.full_name||'用户' }}</div><div class="user-role">{{ roleLabel }}</div></div>
+            </div>
+            <button class="modal-close" @click="showMobileNav=false">&times;</button>
+          </div>
+          <nav class="sidebar-nav">
+            <a v-for="item in menuItems" :key="item.id" :class="['nav-item',{active:page===item.id}]" href="#" @click.prevent="switchPage(item.id);showMobileNav=false">
+              <span class="nav-icon" v-html="item.icon"></span><span class="nav-label">{{ item.label }}</span>
+            </a>
+            <a class="nav-item" href="../portal/index.html"><span class="nav-icon">🏠</span><span class="nav-label">返回门户</span></a>
+          </nav>
+          <div class="mobile-nav-footer"><button class="btn btn-ghost btn-full" @click="doLogout">退出登录</button></div>
+        </aside>
+      </div>
+
+      <!-- 桌面侧边栏 -->
+      <aside v-if="viewMode==='desktop'" class="sidebar" :class="{collapsed:sidebarCollapsed}">
+        <div class="sidebar-header">
+          <div class="sidebar-logo">
+            <svg width="32" height="32" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="url(#g)"/><path d="M12 20L18 26L28 14" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><defs><linearGradient id="g" x1="0" y1="0" x2="40" y2="40"><stop stop-color="#a855f7"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs></svg>
+            <span v-if="!sidebarCollapsed" class="sidebar-title">演示预约</span>
+          </div>
+          <button class="sidebar-toggle" @click="toggleSidebar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+        </div>
+        <nav class="sidebar-nav">
+          <a v-for="item in menuItems" :key="item.id" :class="['nav-item',{active:page===item.id}]" href="#" @click.prevent="switchPage(item.id)">
+            <span class="nav-icon" v-html="item.icon"></span><span v-if="!sidebarCollapsed" class="nav-label">{{ item.label }}</span>
+          </a>
+          <a class="nav-item" href="../portal/index.html">
+            <span class="nav-icon">🏠</span><span v-if="!sidebarCollapsed" class="nav-label">返回门户</span>
+          </a>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="user-info-mini">
+            <div class="user-avatar">{{ userProfile?.full_name?.charAt(0)||'U' }}</div>
+            <div v-if="!sidebarCollapsed" class="user-meta"><div class="user-name">{{ userProfile?.full_name||'用户' }}</div><div class="user-role">{{ roleLabel }}</div></div>
+          </div>
+          <div class="sidebar-footer-actions">
+            <button class="btn-icon" @click="toggleViewMode" :title="viewMode==='desktop'?'手机版':'桌面版'">
+              <svg v-if="viewMode==='desktop'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+              <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </button>
+            <button class="btn-icon" @click="doLogout" title="退出">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 主内容 -->
+      <main class="main-content">
+        <div class="notice-banner notice-banner-main">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。系统维护不易，欢迎捐赠token ^^</div>
+
+        <!-- 仪表盘 -->
+        <div v-if="page==='dashboard'" class="page">
+          <div class="page-header"><h2>仪表盘</h2><p class="page-desc">欢迎回来，{{ userProfile?.full_name }}</p></div>
+          <div class="stats-grid">
+            <div class="stat-card clickable" @click="expandedEquipmentId=expandedEquipmentId==='__dashboard___'?null:'__dashboard___'">
+              <div class="stat-icon" style="background:rgba(168,85,247,0.15)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              </div>
+              <div><div class="stat-number">{{ dashboardStats.totalEquipment }}</div><div class="stat-label">设备总数 (点击展开)</div></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:rgba(250,204,21,0.15)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div><div class="stat-number">{{ dashboardStats.myReservations }}</div><div class="stat-label">我的预约</div></div>
+            </div>
+          </div>
+          <div v-if="expandedEquipmentId==='__dashboard___'" class="dashboard-detail">
+            <div v-for="d in equipmentDetail" :key="d.name" class="detail-row">
+              <span class="detail-name">{{ d.name }}</span>
+              <span class="detail-count">{{ d.available }}/{{ d.total }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 预约日历 -->
+        <div v-if="page==='calendar'" class="page">
+          <div class="page-header"><h2>预约日历</h2><p class="page-desc">点击日期进行预约，有预约的日期显示占用情况</p></div>
+          <div class="calendar-container"><div id="booking-calendar"></div></div>
+        </div>
+
+        <!-- 我的预约 -->
+        <div v-if="page==='my-reservations'" class="page">
+          <div class="page-header"><h2>我的预约</h2></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>设备/数量</th><th>日期范围</th><th>国家</th><th>用途</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="r in myReservations" :key="r.id">
+                  <td>{{ reservationDescription(r) }}</td>
+                  <td>{{ r.start_date }} ~ {{ r.end_date }}</td>
+                  <td>{{ r.country }}</td>
+                  <td>{{ r.purpose||'-' }}</td>
+                  <td><span :class="'badge badge-'+r.status">{{ statusLabel(r.status) }}</span></td>
+                  <td><button v-if="r.status==='active'" class="btn btn-sm btn-danger" @click="cancelReservation(r.id)">取消</button></td>
+                </tr>
+                <tr v-if="myReservations.length===0"><td colspan="6" class="empty-td">暂无预约记录</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 设备管理（平面列表：每行一个独立资产） -->
+        <div v-if="page==='equipment'&&isAdmin" class="page">
+          <div class="page-header"><h2>设备管理</h2><button class="btn btn-primary" @click="showEquipmentForm=true;editingEquipment=null">+ 添加资产</button></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>资产名称</th><th>资产编号</th><th>参数配置</th><th>资产配件</th><th>归属人</th><th>资产位置</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="unit in equipmentUnits" :key="unit.id">
+                  <td><strong>{{ unitName(unit.equipment_id) }}</strong></td>
+                  <td><code>{{ unit.serial_no }}</code></td>
+                  <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ unit.params||'-' }}</td>
+                  <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ unit.accessories||'-' }}</td>
+                  <td>{{ unit.custodian||'-' }}</td>
+                  <td>{{ unit.current_location||'-' }}</td>
+                  <td><span :class="'badge badge-'+unit.status">{{ statusLabel(unit.status) }}</span></td>
+                  <td><button class="btn btn-sm btn-ghost" @click.stop="editUnit(unit)">编辑</button><button class="btn btn-sm btn-danger" @click.stop="deleteUnit(unit.id)">删除</button></td>
+                </tr>
+                <tr v-if="equipmentUnits.length===0"><td colspan="8" class="empty-td">暂无资产数据，请先导入</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 人员管理 -->
+        <div v-if="page==='personnel'&&isAdmin" class="page">
+          <div class="page-header"><h2>人员管理</h2><button class="btn btn-primary" @click="openPersonnelForm(null)">+ 添加人员</button></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>姓名</th><th>任务数</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="p in personnel" :key="p.id">
+                  <td><strong>{{ p.name }}</strong></td>
+                  <td><span class="badge badge-available">{{ tasksForPerson(p.id).length }} 个任务</span></td>
+                  <td>
+                    <button class="btn btn-sm btn-ghost" @click="openTaskForm(p)">任务</button>
+                    <button class="btn btn-sm btn-ghost" @click="openPersonnelForm(p)">编辑</button>
+                    <button class="btn btn-sm btn-danger" @click="deletePersonnel(p.id)">删除</button>
+                  </td>
+                </tr>
+                <tr v-if="personnel.length===0"><td colspan="3" class="empty-td">暂无人员</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 资源总览 -->
+        <div v-if="page==='pool'" class="page">
+          <div class="page-header"><h2>资源总览</h2></div>
+          <div class="pool-cards">
+            <div class="pool-card">
+              <h3>🛠 设备资源</h3>
+              <div class="pool-stats"><div class="pool-stat"><span class="num">{{ equipmentList.length }}</span> 种设备</div><div class="pool-stat"><span class="num">{{ equipmentUnits.length }}</span> 个单元</div></div>
+              <div class="pool-items">
+                <div v-for="eq in equipmentList" :key="eq.id" class="pool-item">
+                  <span>{{ eq.name }} ({{ eq.code }})</span>
+                  <span :class="'badge badge-'+eq.status">{{ statusLabel(eq.status) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="pool-card">
+              <h3>👥 人员资源</h3>
+              <div class="pool-stats"><div class="pool-stat"><span class="num">{{ personnel.length }}</span> 人</div></div>
+              <div class="pool-items">
+                <div v-for="p in personnel" :key="p.id" class="pool-item">
+                  <span>{{ p.name }}</span>
+                  <span class="badge badge-available">{{ tasksForPerson(p.id).length }} 个任务</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 用户管理 -->
+        <div v-if="page==='users'&&isAdmin" class="page">
+          <div class="page-header"><h2>用户管理</h2></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>登录名</th><th>姓名</th><th>工号</th><th>部门</th><th>事业部</th><th>片区</th><th>角色</th><th>注册时间</th></tr></thead>
+              <tbody>
+                <tr v-for="u in userList" :key="u.id">
+                  <td><code>{{ u.login_name }}</code></td>
+                  <td><strong>{{ u.full_name }}</strong></td>
+                  <td>{{ u.employee_id }}</td>
+                  <td>{{ u.department }}</td>
+                  <td>{{ u.division||'-' }}</td>
+                  <td>{{ u.region||'-' }}</td>
+                  <td><span :class="'badge badge-'+u.role">{{ roleLabelFor(u.role) }}</span></td>
+                  <td>{{ u.created_at?.slice(0,10) }}</td>
+                </tr>
+                <tr v-if="userList.length===0"><td colspan="8" class="empty-td">暂无用户</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- ===== 资产表单弹窗（添加/编辑独立资产） ===== -->
+    <div v-if="showEquipmentForm" class="modal-overlay" @click.self="showEquipmentForm=false">
+      <div class="modal">
+        <div class="modal-header"><h3>{{ editingEquipment?'编辑资产':'添加资产' }}</h3><button class="modal-close" @click="showEquipmentForm=false">&times;</button></div>
+        <div class="modal-body">
+          <div class="form-group"><label>资产名称 *</label><input v-model="eqForm.name" type="text" placeholder="如：频谱分析仪"/></div>
+          <div class="form-group"><label>资产编号 *</label><input v-model="eqForm.serial_no" type="text" placeholder="如：RN12236"/></div>
+          <div class="form-row"><div class="form-group"><label>参数配置</label><input v-model="eqForm.params" type="text"/></div><div class="form-group"><label>资产配件</label><input v-model="eqForm.accessories" type="text"/></div></div>
+          <div class="form-row"><div class="form-group"><label>归属人</label><input v-model="eqForm.custodian" type="text"/></div><div class="form-group"><label>资产位置</label><input v-model="eqForm.location" type="text"/></div></div>
+          <div class="form-group"><label>备注</label><textarea v-model="eqForm.notes" placeholder="占用情况等备注信息"></textarea></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost" @click="showEquipmentForm=false">取消</button><button class="btn btn-primary" @click="saveEquipment" :disabled="saving">{{ saving?'保存中...':'保存' }}</button></div>
+      </div>
+    </div>
+
+    <!-- ===== 设备单元表单弹窗 ===== -->
+    <div v-if="showUnitForm" class="modal-overlay" @click.self="showUnitForm=false">
+      <div class="modal">
+        <div class="modal-header"><h3>{{ editingUnit?'编辑单元':'添加单元' }}</h3><button class="modal-close" @click="showUnitForm=false">&times;</button></div>
+        <div class="modal-body">
+          <div class="form-group"><label>资产编号 *</label><input v-model="unitForm.serial_no" type="text"/></div>
+          <div class="form-row"><div class="form-group"><label>保管人</label><input v-model="unitForm.custodian" type="text"/></div><div class="form-group"><label>状态</label><select v-model="unitForm.status"><option value="available">可用</option><option value="occupied">占用中</option></select></div></div>
+          <div class="form-group"><label>位置</label><input v-model="unitForm.current_location" type="text"/></div>
+          <div class="form-group"><label>备注</label><textarea v-model="unitForm.notes"></textarea></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost" @click="showUnitForm=false">取消</button><button class="btn btn-primary" @click="saveEquipmentUnit" :disabled="saving">{{ saving?'保存中...':'保存' }}</button></div>
+      </div>
+    </div>
+
+    <!-- ===== 人员表单弹窗 ===== -->
+    <div v-if="showPersonnelForm" class="modal-overlay" @click.self="showPersonnelForm=false">
+      <div class="modal">
+        <div class="modal-header"><h3>{{ editingPersonnelId?'编辑人员':'添加人员' }}</h3><button class="modal-close" @click="showPersonnelForm=false">&times;</button></div>
+        <div class="modal-body">
+          <div class="form-group"><label>姓名</label><input v-model="personnelForm.name" type="text"/></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost" @click="showPersonnelForm=false">取消</button><button class="btn btn-primary" @click="savePersonnel" :disabled="saving">{{ saving?'保存中...':'保存' }}</button></div>
+      </div>
+    </div>
+
+    <!-- ===== 任务表单弹窗 ===== -->
+    <div v-if="showTaskForm" class="modal-overlay" @click.self="showTaskForm=false">
+      <div class="modal">
+        <div class="modal-header"><h3>{{ taskPersonName }} 的任务</h3><button class="modal-close" @click="showTaskForm=false">&times;</button></div>
+        <div class="modal-body">
+          <div v-if="tasksForPerson(taskPersonId).length" class="task-list">
+            <div v-for="t in tasksForPerson(taskPersonId)" :key="t.id" class="task-item">
+              <div><div class="task-desc">{{ t.task_description||'任务' }}</div><div class="task-dates">{{ t.start_date }} ~ {{ t.end_date }}</div></div>
+              <button class="btn btn-sm btn-danger" @click="deleteTask(t.id)">删除</button>
+            </div>
+          </div>
+          <div v-else style="color:var(--text-tertiary);font-size:13px;margin-bottom:14px;">暂无任务安排</div>
+          <div style="border-top:1px solid var(--border);padding-top:14px;">
+            <div class="form-group"><label>任务描述</label><input v-model="taskForm.task_description" type="text" placeholder="如：赞比亚开局"/></div>
+            <div class="form-row"><div class="form-group"><label>开始日期</label><input v-model="taskForm.start_date" type="date"/></div><div class="form-group"><label>结束日期</label><input v-model="taskForm.end_date" type="date"/></div></div>
+            <button class="btn btn-primary" @click="saveTask" :disabled="saving">{{ saving?'添加中...':'添加任务' }}</button>
+          </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost" @click="showTaskForm=false">关闭</button></div>
+      </div>
+    </div>
+
+    <!-- ===== 预约弹窗 ===== -->
+    <div v-if="showBookingModal" class="modal-overlay" @click.self="showBookingModal=false">
+      <div class="modal modal-booking">
+        <div class="modal-header"><h3>预约 - {{ bookingDate }}</h3><button class="modal-close" @click="showBookingModal=false">&times;</button></div>
+        <div class="modal-body">
+          <p style="font-size:13px;color:var(--text-tertiary);margin-bottom:12px;">选择设备和数量（可多选）</p>
+          <div v-for="eq in equipmentList" :key="eq.id" :class="['eq-select-item',{selected:bookingEquipmentSel[eq.id]}]" @click="toggleBookingEquipment(eq.id)">
+            <input type="checkbox" :checked="!!bookingEquipmentSel[eq.id]" @click.stop="toggleBookingEquipment(eq.id)"/>
+            <span>{{ eq.name }}</span>
+            <input v-if="bookingEquipmentSel[eq.id]" class="eq-qty-input" type="number" min="1" :value="bookingEquipmentSel[eq.id]" @click.stop @input="setBookingEqQty(eq.id,$event.target.value)"/>
+            <span class="eq-avail">可用: {{ getDateAvailable(eq.id) }}/{{ equipmentUnits.filter(u=>u.equipment_id===eq.id).length || eq.total_quantity }}</span>
+          </div>
+
+          <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
+            <div class="form-row">
+              <div class="form-group"><label>开始日期</label><input v-model="bookingStart" type="date"/></div>
+              <div class="form-group"><label>结束日期</label><input v-model="bookingEnd" type="date"/></div>
+            </div>
+            <div class="form-group"><label>国家</label><select v-model="bookingCountry"><option value="">-- 请选择 --</option><option v-for="c in countryList" :key="c" :value="c">{{ c }}</option></select></div>
+            <div class="form-group"><label>用途说明</label><input v-model="bookingPurpose" type="text" placeholder="简要说明使用目的"/></div>
+          </div>
+
+          <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
+            <p style="font-size:13px;color:var(--text-tertiary);margin-bottom:8px;">选择人员（可选，具体安排以售后统筹为准）</p>
+            <div class="person-select-grid">
+              <label v-for="p in personnel" :key="p.id" :class="['person-chip',{selected:bookingPersonnelSel.includes(p.id)}]">
+                <input type="checkbox" :checked="bookingPersonnelSel.includes(p.id)" @change="toggleBookingPerson(p.id)" style="display:none"/>
+                {{ p.name }}
+              </label>
+              <span v-if="personnel.length===0" style="color:var(--text-tertiary);font-size:12px;">暂无人员数据</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" @click="showBookingModal=false">取消</button>
+          <button class="btn btn-primary" @click="submitBooking" :disabled="bookingLoading">{{ bookingLoading?'提交中...':'确认预约' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 日历浮窗 ===== -->
+    <div v-if="tooltipData.show" class="calendar-tooltip" :style="{left:tooltipData.x+'px',top:tooltipData.y+'px'}" v-html="tooltipData.content"></div>
+
+    <!-- ===== Toast ===== -->
+    <div v-if="toast.show" :class="'toast toast-'+toast.type">{{ toast.message }}</div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

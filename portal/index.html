@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>tea-pulse 门户</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div id="app">
+    <!-- ===== 登录页 ===== -->
+    <div v-if="page === 'login'" class="auth-page">
+      <div class="auth-card">
+        <div class="auth-header">
+          <h1>One-by-One 门户</h1>
+          <p class="auth-subtitle">国际项目预约管理统一登录</p>
+        </div>
+        <div class="notice-banner">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。系统维护不易，欢迎捐赠token ^^</div>
+        <div class="auth-form">
+          <div class="form-group">
+            <label>登录名</label>
+            <input v-model="loginForm.login_name" type="text" placeholder="输入登录名"/>
+          </div>
+          <div class="form-group">
+            <label>密码</label>
+            <input v-model="loginForm.password" type="password" placeholder="输入密码"/>
+          </div>
+          <div v-if="errorMsg" class="auth-error">{{ errorMsg }}</div>
+          <button class="btn btn-primary btn-full" @click="doLogin" :disabled="loading">{{ loading ? '登录中...' : '登 录' }}</button>
+          <p class="auth-footer-text">还没有账号？<a href="#" @click.prevent="page='register'">立即注册</a></p>
+        </div>
+        <div class="auth-copyright">© 2026 周力1000365 版权所有</div>
+      </div>
+    </div>
+
+    <!-- ===== 注册页 ===== -->
+    <div v-if="page === 'register'" class="auth-page">
+      <div class="auth-card">
+        <div class="auth-header">
+          <h1>注册新账号</h1>
+          <p class="auth-subtitle">请填写以下信息完成注册</p>
+        </div>
+        <div class="notice-banner">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。系统维护不易，欢迎捐赠token ^^</div>
+        <div class="auth-form">
+          <div class="form-row">
+            <div class="form-group"><label>登录名 *</label><input v-model="regForm.login_name" type="text"/></div>
+            <div class="form-group"><label>密码 *</label><input v-model="regForm.password" type="password"/></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>姓名 *</label><input v-model="regForm.full_name" type="text"/></div>
+            <div class="form-group"><label>工号 *</label><input v-model="regForm.employee_id" type="text"/></div>
+          </div>
+          <div class="form-group"><label>部门 *</label><input v-model="regForm.department" type="text"/></div>
+          <div class="form-row">
+            <div class="form-group"><label>事业部</label><input v-model="regForm.division" type="text"/></div>
+            <div class="form-group"><label>片区</label><input v-model="regForm.region" type="text"/></div>
+          </div>
+          <div v-if="errorMsg" class="auth-error">{{ errorMsg }}</div>
+          <button class="btn btn-primary btn-full" @click="doRegister" :disabled="loading">{{ loading?'注册中...':'注 册' }}</button>
+          <p class="auth-footer-text">已有账号？<a href="#" @click.prevent="page='login'">返回登录</a></p>
+        </div>
+        <div class="auth-copyright">© 2026 周力1000365 版权所有</div>
+      </div>
+    </div>
+
+    <!-- ===== Portal 首页 ===== -->
+    <div v-if="page === 'portal'" class="portal-page">
+      <div class="notice-banner" style="max-width:800px;width:100%;margin-bottom:24px;">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。系统维护不易，欢迎捐赠token ^^</div>
+      <div class="portal-header">
+        <div class="portal-user">
+          <div class="portal-avatar">{{ profile?.full_name?.charAt(0) || 'U' }}</div>
+          <div>
+            <h2>欢迎回来，{{ profile?.full_name }}</h2>
+            <p style="color:var(--text-tertiary);font-size:13px;">{{ roleName }} · {{ profile?.department }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="portal-cards">
+        <a class="portal-card" href="../booking/index.html">
+          <div class="portal-card-icon">🛠</div>
+          <h3>演示预约系统</h3>
+          <p>设备预约、人员管理</p>
+          <span style="color:var(--a-end);font-size:13px;font-weight:500">进入 →</span>
+        </a>
+        <div class="portal-card portal-card-disabled">
+          <div class="portal-card-icon">📚</div>
+          <h3>国内培训/厂验预约系统</h3>
+          <p>即将上线</p>
+        </div>
+        <div class="portal-card portal-card-disabled">
+          <div class="portal-card-icon">📦</div>
+          <h3>售后库房管理系统</h3>
+          <p>即将上线</p>
+        </div>
+      </div>
+      <div class="portal-footer">
+        <button class="btn btn-ghost" @click="doLogout">退出登录</button>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div v-if="toast.show" :class="'toast toast-' + toast.type">{{ toast.message }}</div>
+  </div>
+
+  <script>
+    try {
+    const cfg = window.SUPABASE_CONFIG || {};
+    const supabase = window.supabase?.createClient(cfg.supabaseUrl || '', cfg.supabaseAnonKey || '', {
+      auth: { autoRefreshToken: true, persistSession: true }
+    });
+    const toEmail = n => (n||'').toLowerCase().trim() + (cfg.internalDomain || '@booking.tea-pulse.cn');
+
+    const { createApp, ref, computed, onMounted } = Vue;
+    createApp({
+      setup() {
+        const page = ref('login');
+        const loading = ref(false);
+        const errorMsg = ref('');
+        const toast = ref({ show:false, message:'', type:'info' });
+        const profile = ref(null);
+        const loginForm = ref({ login_name:'', password:'' });
+        const regForm = ref({ login_name:'', password:'', full_name:'', employee_id:'', department:'', division:'', region:'' });
+        let timer = null;
+
+        const roleName = computed(() => {
+          const m = { user:'普通用户', admin:'管理员', super_admin:'超级管理员' };
+          return m[profile.value?.role] || '用户';
+        });
+
+        function showToast(msg,type) { if(timer)clearTimeout(timer); toast.value={show:true,message:msg,type}; timer=setTimeout(()=>toast.value.show=false,3000); }
+
+        async function doLogin() {
+          if(!loginForm.value.login_name||!loginForm.value.password){errorMsg.value='请输入登录名和密码';return;}
+          loading.value=true;errorMsg.value='';
+          try {
+            const {error}=await supabase.auth.signInWithPassword({email:toEmail(loginForm.value.login_name),password:loginForm.value.password});
+            if(error)throw error;
+            await loadUser();
+            if(profile.value) page.value='portal';
+          } catch(err){errorMsg.value=err.message||'登录失败';}
+          finally{loading.value=false;}
+        }
+
+        async function doRegister() {
+          const f=regForm.value;
+          if(!f.login_name||!f.password||!f.full_name||!f.employee_id||!f.department){errorMsg.value='请填写所有必填字段';return;}
+          if(f.password.length<6){errorMsg.value='密码至少6位';return;}
+          loading.value=true;errorMsg.value='';
+          try {
+            const {error}=await supabase.auth.signUp({email:toEmail(f.login_name),password:f.password,options:{data:{login_name:f.login_name,full_name:f.full_name,employee_id:f.employee_id,department:f.department,division:f.division||'',region:f.region||''}}});
+            if(error)throw error;
+            showToast('注册成功，请登录','success');
+            page.value='login';
+            loginForm.value.login_name=f.login_name;
+          } catch(err){errorMsg.value=err.message||'注册失败';}
+          finally{loading.value=false;}
+        }
+
+        async function doLogout() { await supabase.auth.signOut(); profile.value=null; page.value='login'; }
+
+        async function loadUser() {
+          const {data:{session}}=await supabase.auth.getSession();
+          if(session?.user){
+            const {data,error}=await supabase.rpc('get_my_profile');
+            if(data) profile.value=data;
+            else if(error) throw error;
+          }
+        }
+
+        onMounted(async () => {
+          try {
+            const {data:{session}}=await supabase.auth.getSession();
+            if(session?.user){
+              const {data,error}=await supabase.rpc('get_my_profile');
+              if(data){profile.value=data;page.value='portal';}
+              else if(error) throw error;
+            }
+          } catch(e){console.warn(e);}
+        });
+
+        return { page,loading,errorMsg,toast,profile,loginForm,regForm,roleName,doLogin,doRegister,doLogout };
+      }
+    }).mount('#app');
+    } catch(e) { document.getElementById('app').innerHTML = '<div style="color:red;padding:40px;text-align:center;"><h2>脚本加载错误</h2><p style="margin-top:10px;font-size:14px;color:#aaa;">' + e.message + '</p><p style="margin-top:8px;font-size:12px;color:#888;">' + e.stack?.slice(0,300) + '</p></div>'; }
+  </script>
+</body>
+</html>
