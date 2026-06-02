@@ -131,6 +131,7 @@ const app = createApp({
     // ===== 认证 =====
     async function doLogin() {
       if(!loginForm.value.login_name||!loginForm.value.password) { authError.value='请输入登录名和密码'; return; }
+      if(!/^[a-zA-Z0-9._-]+$/.test(loginForm.value.login_name)){ authError.value='登录名只能使用英文、数字、下划线和连字符'; return; }
       authLoading.value=true; authError.value='';
       try {
         const {error}=await supabase.auth.signInWithPassword({email:toEmail(loginForm.value.login_name),password:loginForm.value.password});
@@ -144,6 +145,7 @@ const app = createApp({
       const f=regForm.value;
       if(!f.login_name||!f.password||!f.full_name||!f.employee_id||!f.department) { authError.value='请填写所有必填字段'; return; }
       if(f.password.length<6) { authError.value='密码至少6位'; return; }
+      if(!/^[a-zA-Z0-9._-]+$/.test(f.login_name)){ authError.value='登录名只能使用英文、数字、下划线和连字符'; return; }
       authLoading.value=true; authError.value='';
       try {
         const {error}=await supabase.auth.signUp({email:toEmail(f.login_name),password:f.password,options:{data:{login_name:f.login_name,full_name:f.full_name,employee_id:f.employee_id,department:f.department,division:f.division||'',region:f.region||''}}});
