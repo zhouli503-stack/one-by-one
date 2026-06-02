@@ -193,7 +193,7 @@ const app = createApp({
     async function loadPersonnel() { const {data}=await supabase.from('personnel').select('*').order('id'); if(data) personnel.value=data; }
     async function loadPersonnelAssignments() { const {data}=await supabase.from('personnel_assignments').select('*,personnel!inner(name)').order('start_date'); if(data) personnelAssignments.value=data; }
     async function loadMyReservations() { if(!user.value)return; const {data}=await supabase.from('equipment_reservations').select('*').eq('user_id',user.value.id).order('created_at',{ascending:false}); if(data) myReservations.value=data; }
-    async function loadUsers() { if(!isAdmin.value)return; const {data,error}=await supabase.rpc('list_all_profiles'); if(data) userList.value=data; }
+    async function loadUsers() { if(!isAdmin.value){ userList.value=[]; return; } const {data,error}=await supabase.rpc('list_all_profiles'); if(data) userList.value=data; }
     async function loadAllReservations() { const {data}=await supabase.from('equipment_reservations').select('*').eq('status','active'); return data||[]; }
 
     // ===== 资产CRUD（每行一个独立资产） =====
@@ -292,12 +292,12 @@ const app = createApp({
     // ===== 预约 =====
     const allReservations = ref([]);
 
-    function openBookingModal(date) {
+    async function openBookingModal(date) {
       bookingDate.value=date; bookingStart.value=date; bookingEnd.value=date;
       bookingCountry.value=''; bookingPurpose.value='';
       bookingEquipmentSel.value={}; bookingPersonnelSel.value=[];
-      // 加载所有活跃预约，用于计算可用设备数
-      loadAllReservations().then(data => { allReservations.value = data; });
+      // 刷新预约数据，用于计算可用设备数
+      allReservations.value = await loadAllReservations();
       showBookingModal.value=true;
     }
 
@@ -343,7 +343,7 @@ const app = createApp({
         // 遍历每一天检查设备和人员
         const start=new Date(bookingStart.value);
         const end=new Date(bookingEnd.value);
-        const allReservations=await loadAllReservations();
+        const existingReservations = await loadAllReservations();
 
         for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)) {
           const dateStr=d.toISOString().slice(0,10);
@@ -353,7 +353,7 @@ const app = createApp({
             const eqId=parseInt(eqIdStr);
             const totalUnits=equipmentUnits.value.filter(u=>u.equipment_id===eqId);
             const occupiedIds=new Set();
-            for(const r of allReservations) {
+            for(const r of existingReservations) {
               if(r.status!=='active') continue;
               if(dateStr<r.start_date||dateStr>r.end_date) continue;
               const selections=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
@@ -392,7 +392,7 @@ const app = createApp({
           const endD=new Date(end);
           const occupiedIds=new Set();
 
-          for(const r of allReservations) {
+          for(const r of existingReservations) {
             if(r.status!=='active') continue;
             for(let d2=new Date(startD);d2<=endD;d2.setDate(d2.getDate()+1)) {
               const ds=d2.toISOString().slice(0,10);
@@ -461,6 +461,9 @@ const app = createApp({
       if(!el) return;
       if(calendarInstance) calendarInstance.destroy();
 
+      // 先加载预约数据到缓存，避免每个日期格重复请求
+      allReservations.value = await loadAllReservations();
+
       calendarInstance=new FullCalendar.Calendar(el,{
         initialView:'dayGridMonth', locale:'zh-cn',
         headerToolbar:{left:'prev,next today',center:'title'},
@@ -476,7 +479,7 @@ const app = createApp({
 
     async function renderCalendarEvents() {
       if(!calendarInstance) return;
-      const allRes=await loadAllReservations();
+      const allRes=allReservations.value;
       const events=[];
       for(const r of allRes) {
         const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
@@ -495,8 +498,8 @@ const app = createApp({
       await initCalendar();
     }
 
-    async function markDaysWithReservations() {
-      const allRes=await loadAllReservations();
+    function markDaysWithReservations() {
+      const allRes=allReservations.value;
       const dates=new Set();
       for(const r of allRes) {
         const s=new Date(r.start_date),e=new Date(r.end_date);
@@ -508,9 +511,9 @@ const app = createApp({
       });
     }
 
-    async function renderDayContent(info) {
+    function renderDayContent(info) {
       const dateStr=info.date.getFullYear()+'-'+String(info.date.getMonth()+1).padStart(2,'0')+'-'+String(info.date.getDate()).padStart(2,'0');
-      const allRes=await loadAllReservations();
+      const allRes=allReservations.value;
       const dayRes=allRes.filter(r=>r.status==='active'&&dateStr>=r.start_date&&dateStr<=r.end_date);
 
       if(!dayRes.length) return;
@@ -556,7 +559,7 @@ const app = createApp({
     }
 
     async function showDayTooltip(e,dateStr) {
-      const allRes=await loadAllReservations();
+      const allRes=allReservations.value;
       const dayRes=allRes.filter(r=>r.status==='active'&&dateStr>=r.start_date&&dateStr<=r.end_date);
       const dayAssign=personnelAssignments.value.filter(a=>dateStr>=a.start_date&&dateStr<=a.end_date);
 
@@ -612,7 +615,6 @@ const app = createApp({
       equipmentList, equipmentUnits, personnel, personnelAssignments, myReservations, allReservations,
       equipmentDetail, expandedEquipmentId,
       showEquipmentForm, editingEquipment, eqForm,
-      showPersonnelForm, personnelForm, editingPersonnelId,
       showPersonnelForm, personnelForm, editingPersonnelId,
       showTaskForm, taskPersonId, taskPersonName, taskForm,
       showBookingModal, bookingDate, bookingStart, bookingEnd,
