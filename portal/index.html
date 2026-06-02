@@ -134,6 +134,7 @@
 
         async function doLogin() {
           if(!loginForm.value.login_name||!loginForm.value.password){errorMsg.value='请输入登录名和密码';return;}
+          if(!/^[a-zA-Z0-9._-]+$/.test(loginForm.value.login_name)){errorMsg.value='登录名只能使用英文、数字、下划线和连字符';return;}
           loading.value=true;errorMsg.value='';
           try {
             const {error}=await supabase.auth.signInWithPassword({email:toEmail(loginForm.value.login_name),password:loginForm.value.password});
