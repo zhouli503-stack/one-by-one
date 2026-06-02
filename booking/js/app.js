@@ -39,6 +39,7 @@ const app = createApp({
     const personnel = ref([]);
     const personnelAssignments = ref([]);
     const myReservations = ref([]);
+    const expandedEquipmentId = ref(null);
 
     // 资产表单（独立资产，不分设备类型）
     const showEquipmentForm = ref(false);
@@ -609,7 +610,7 @@ const app = createApp({
       user, userProfile, userList, toast, tooltipData,
       loginForm, regForm,
       equipmentList, equipmentUnits, personnel, personnelAssignments, myReservations, allReservations,
-      equipmentDetail,
+      equipmentDetail, expandedEquipmentId,
       showEquipmentForm, editingEquipment, eqForm,
       showPersonnelForm, personnelForm, editingPersonnelId,
       showPersonnelForm, personnelForm, editingPersonnelId,
