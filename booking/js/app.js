@@ -325,7 +325,7 @@ const app = createApp({
     function getDateAvailable(eqId) {
       const s = bookingStart.value, e = bookingEnd.value;
       if (!s || !e) return 0;
-      const units = equipmentUnits.value.filter(u => u.equipment_id === eqId && u.status === 'available');
+      const units = equipmentUnits.value.filter(u => u.equipment_id === eqId);
       if (!units.length) return 0;
       const occupied = new Set();
       for (const r of allReservations.value) {
@@ -381,7 +381,7 @@ const app = createApp({
                 if(sel.eq_id===eqId) (sel.unit_ids||[]).forEach(uid=>occupiedIds.add(uid));
               }
             }
-            const available=totalUnits.filter(u=>!occupiedIds.has(u.id)&&u.status==='available').length;
+            const available=totalUnits.filter(u=>!occupiedIds.has(u.id)).length;
             if(available<qty) {
               const eqName=equipmentList.value.find(e=>e.id===eqId)?.name||eqId;
               showToast(`${dateStr} ${eqName}不足（仅剩${available}台），请调整`,'error');
@@ -422,12 +422,9 @@ const app = createApp({
             }
           }
 
-          const available=allUnits.filter(u=>u.status==='available'&&!occupiedIds.has(u.id));
+          const available=allUnits.filter(u=>!occupiedIds.has(u.id));
           const assign=available.slice(0,qty);
           selections.push({eq_id:eqId,qty,unit_ids:assign.map(u=>u.id)});
-
-          // 更新单元状态
-          if(assign.length) await supabase.rpc('update_equipment_units_status',{p_unit_ids:assign.map(u=>u.id),p_new_status:'occupied',p_location:bookingCountry.value});
         }
 
         await supabase.from('equipment_reservations').insert({
@@ -451,14 +448,7 @@ const app = createApp({
     async function cancelReservation(id) {
       if(!confirm('确定取消该预约？'))return;
       try {
-        const {data:[r]}=await supabase.from('equipment_reservations').select('equipment_selections').eq('id',id);
         await supabase.from('equipment_reservations').update({status:'cancelled'}).eq('id',id);
-        if(r?.equipment_selections) {
-          const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections;
-          for(const sel of sels) {
-            if(sel.unit_ids?.length) await supabase.rpc('update_equipment_units_status',{p_unit_ids:sel.unit_ids,p_new_status:'available',p_location:''});
-          }
-        }
         showToast('预约已取消','success');
         await loadMyReservations(); await loadEquipmentUnits();
         if(calendarInstance) setTimeout(() => refreshCalendar(), 500);
@@ -491,7 +481,13 @@ const app = createApp({
         height:'auto',
         dateClick:(info)=>openBookingModal(info.dateStr),
         eventClick:(info)=>{
-          const dateStr=info.event.startStr;
+          // 临时隐藏事件元素，通过鼠标坐标找到下方真实的日期格
+          const orig=info.el.style.display;
+          info.el.style.display='none';
+          const elUnder=document.elementFromPoint(info.jsEvent.clientX,info.jsEvent.clientY);
+          info.el.style.display=orig;
+          const dayEl=elUnder?.closest('.fc-daygrid-day');
+          const dateStr=dayEl?.getAttribute('data-date')||info.event.startStr;
           openDayReservations(dateStr);
         },
         eventMouseEnter:(info)=>{
