@@ -196,7 +196,7 @@
                   <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ unit.accessories||'-' }}</td>
                   <td>{{ unit.custodian||'-' }}</td>
                   <td>{{ unit.current_location||'-' }}</td>
-                  <td><span :class="'badge badge-'+unit.status">{{ statusLabel(unit.status) }}</span></td>
+                  <td><span :class="'badge badge-'+(todayOccupiedIds.has(unit.id)?'occupied':'available')">{{ todayOccupiedIds.has(unit.id)?'占用中':'可用' }}</span></td>
                   <td><button class="btn btn-sm btn-ghost" @click.stop="editUnit(unit)">编辑</button><button class="btn btn-sm btn-danger" @click.stop="deleteUnit(unit.id)">删除</button></td>
                 </tr>
                 <tr v-if="equipmentUnits.length===0"><td colspan="8" class="empty-td">暂无资产数据，请先导入</td></tr>
