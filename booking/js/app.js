@@ -194,7 +194,8 @@ const app = createApp({
     async function loadPersonnelAssignments() { const {data}=await supabase.from('personnel_assignments').select('*,personnel!inner(name)').order('start_date'); if(data) personnelAssignments.value=data; }
     async function loadMyReservations() { if(!user.value)return; const {data}=await supabase.from('equipment_reservations').select('*').eq('user_id',user.value.id).order('created_at',{ascending:false}); if(data) myReservations.value=data; }
     async function loadUsers() { if(!isAdmin.value){ userList.value=[]; return; } const {data,error}=await supabase.rpc('list_all_profiles'); if(data) userList.value=data; }
-    async function loadAllReservations() { const {data}=await supabase.from('equipment_reservations').select('*').eq('status','active'); return data||[]; }
+    // 通过 RPC 加载所有活跃预约，绕过 RLS，保证所有用户看到全局一致的数据
+    async function loadAllReservations() { const {data}=await supabase.rpc('get_all_active_reservations'); return data||[]; }
 
     // ===== 资产CRUD（每行一个独立资产） =====
     function editUnit(unit) {
