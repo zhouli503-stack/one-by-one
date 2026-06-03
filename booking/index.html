@@ -381,6 +381,30 @@
       </div>
     </div>
 
+    <!-- ===== 当日预约详情弹窗 ===== -->
+    <div v-if="showDayReservations" class="modal-overlay" @click.self="showDayReservations=false">
+      <div class="modal">
+        <div class="modal-header"><h3>{{ dayReservationsDate }} 预约详情</h3><button class="modal-close" @click="showDayReservations=false">&times;</button></div>
+        <div class="modal-body">
+          <div v-if="dayReservationsList.length===0" class="day-res-empty">当日暂无预约</div>
+          <div v-for="r in dayReservationsList" :key="r.id" class="day-res-item">
+            <div class="day-res-header">
+              <span class="day-res-name">{{ r.user_name||'未知' }}</span>
+              <span class="day-res-color" :style="{background:eventColors[(r.id||0)%10]?.bg||'#a855f7'}"></span>
+            </div>
+            <div class="day-res-dates">{{ r.start_date }} ~ {{ r.end_date }}</div>
+            <div class="day-res-detail">
+              <div v-for="sel in (typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[])">
+                {{ (equipmentList.find(e=>e.id===sel.eq_id)?.name||'设备') }} x{{ sel.qty }}
+              </div>
+              <div>国家: {{ r.country||'-' }} | 用途: {{ r.purpose||'-' }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost" @click="showDayReservations=false">关闭</button></div>
+      </div>
+    </div>
+
     <!-- ===== 日历浮窗 ===== -->
     <div v-if="tooltipData.show" class="calendar-tooltip" :style="{left:tooltipData.x+'px',top:tooltipData.y+'px'}" v-html="tooltipData.content"></div>
 
