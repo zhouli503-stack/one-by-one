@@ -68,8 +68,27 @@ const app = createApp({
     const bookingEquipmentSel = ref({});  // { eqId: quantity }
     const bookingPersonnelSel = ref([]);  // [personId]
 
+    // 当日预约详情弹窗
+    const showDayReservations = ref(false);
+    const dayReservationsDate = ref('');
+    const dayReservationsList = ref([]);
+
     // 国家
     const countryList = ['中国','尼日利亚','赞比亚','阿尔及利亚','乍得','乌干达','埃塞俄比亚','沙特阿拉伯','马来西亚','印度尼西亚','安哥拉','莫桑比克','肯尼亚','坦桑尼亚','加纳','刚果(金)','刚果(布)','赤道几内亚','加蓬','利比亚','埃及','伊拉克','伊朗','阿联酋','卡塔尔','南非','南苏丹','苏丹','摩洛哥','突尼斯','塞内加尔','科特迪瓦','马里','布基纳法索','贝宁','尼日尔','多哥','塞拉利昂','利比里亚','几内亚','几内亚比绍','冈比亚','佛得角','圣多美和普林西比','毛里塔尼亚','西撒哈拉','吉布提','厄立特里亚','索马里','卢旺达','布隆迪','马拉维','津巴布韦','博茨瓦纳','纳米比亚','斯威士兰','莱索托','马达加斯加','科摩罗','毛里求斯','塞舌尔','英国','法国','德国','意大利','西班牙','葡萄牙','荷兰','比利时','瑞士','奥地利','瑞典','挪威','丹麦','芬兰','冰岛','爱尔兰','波兰','捷克','斯洛伐克','匈牙利','罗马尼亚','保加利亚','塞尔维亚','克罗地亚','波黑','斯洛文尼亚','北马其顿','黑山','阿尔巴尼亚','希腊','土耳其','塞浦路斯','马耳他','卢森堡','列支敦士登','安道尔','摩纳哥','圣马力诺','梵蒂冈','立陶宛','拉脱维亚','爱沙尼亚','白俄罗斯','乌克兰','摩尔多瓦','俄罗斯','格鲁吉亚','亚美尼亚','阿塞拜疆','哈萨克斯坦','乌兹别克斯坦','土库曼斯坦','吉尔吉斯斯坦','塔吉克斯坦','蒙古','韩国','朝鲜','日本','菲律宾','越南','老挝','柬埔寨','缅甸','泰国','新加坡','文莱','东帝汶','孟加拉国','印度','巴基斯坦','斯里兰卡','马尔代夫','尼泊尔','不丹','阿富汗','美国','加拿大','墨西哥','危地马拉','伯利兹','萨尔瓦多','洪都拉斯','尼加拉瓜','哥斯达黎加','巴拿马','古巴','牙买加','海地','多米尼加','巴哈马','巴巴多斯','特立尼达和多巴哥','格林纳达','圣卢西亚','圣文森特和格林纳丁斯','多米尼克','安提瓜和巴布达','圣基茨和尼维斯','哥伦比亚','委内瑞拉','圭亚那','苏里南','厄瓜多尔','秘鲁','巴西','玻利维亚','巴拉圭','乌拉圭','阿根廷','智利','澳大利亚','新西兰','巴布亚新几内亚','斐济','所罗门群岛','瓦努阿图','萨摩亚','汤加','基里巴斯','密克罗尼西亚','马绍尔群岛','帕劳','瑙鲁','图瓦卢'];
+
+    // 日历事件颜色池（供模板弹窗使用）
+    const eventColors=[
+      {bg:'rgba(168,85,247,0.4)',border:'#a855f7'},  // 紫
+      {bg:'rgba(6,182,212,0.4)', border:'#06b6d4'},   // 青
+      {bg:'rgba(34,197,94,0.4)', border:'#22c55e'},   // 绿
+      {bg:'rgba(234,179,8,0.4)', border:'#eab308'},   // 黄
+      {bg:'rgba(249,115,22,0.4)',border:'#f97316'},   // 橙
+      {bg:'rgba(236,72,153,0.4)',border:'#ec4899'},   // 粉
+      {bg:'rgba(59,130,246,0.4)',border:'#3b82f6'},   // 蓝
+      {bg:'rgba(239,68,68,0.4)', border:'#ef4444'},   // 红
+      {bg:'rgba(20,184,166,0.4)',border:'#14b8a6'},   // 青绿
+      {bg:'rgba(99,102,241,0.4)',border:'#6366f1'},   // 靛蓝
+    ];
 
     // ===== 计算属性 =====
     const isLoggedIn = computed(() => !!user.value);
@@ -471,7 +490,15 @@ const app = createApp({
         buttonText:{today:'今天'},
         height:'auto',
         dateClick:(info)=>openBookingModal(info.dateStr),
-        dayCellDidMount:(info)=>{renderDayContent(info); bindDayEvents(info);},
+        eventClick:(info)=>{
+          const dateStr=info.event.startStr;
+          openDayReservations(dateStr);
+        },
+        eventMouseEnter:(info)=>{
+          const r=info.event.extendedProps.reservation;
+          if(r) showSingleTooltip(info.jsEvent, r);
+        },
+        eventMouseLeave:()=>{ tooltipData.value.show=false; },
         events:[]
       });
       calendarInstance.render();
@@ -481,25 +508,23 @@ const app = createApp({
     async function renderCalendarEvents() {
       if(!calendarInstance) return;
       const allRes=allReservations.value;
-      const eventColors=[
-        {bg:'rgba(168,85,247,0.4)',border:'#a855f7'},  // 紫
-        {bg:'rgba(6,182,212,0.4)', border:'#06b6d4'},   // 青
-        {bg:'rgba(34,197,94,0.4)', border:'#22c55e'},   // 绿
-        {bg:'rgba(234,179,8,0.4)', border:'#eab308'},   // 黄
-        {bg:'rgba(249,115,22,0.4)',border:'#f97316'},   // 橙
-        {bg:'rgba(236,72,153,0.4)',border:'#ec4899'},   // 粉
-        {bg:'rgba(59,130,246,0.4)',border:'#3b82f6'},   // 蓝
-        {bg:'rgba(239,68,68,0.4)', border:'#ef4444'},   // 红
-        {bg:'rgba(20,184,166,0.4)',border:'#14b8a6'},   // 青绿
-        {bg:'rgba(99,102,241,0.4)',border:'#6366f1'},   // 靛蓝
-      ];
       const events=[];
       for(const r of allRes) {
         const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
         if(sels.length){
           const color=eventColors[r.id % eventColors.length];
           const userName=r.user_name||'未知';
-          events.push({title:`${userName} - ${sels.length}种设备`,start:r.start_date,end:r.end_date,allDay:true,backgroundColor:color.bg,borderColor:color.border,textColor:'#fff'});
+          events.push({
+            id: String(r.id),
+            title:`${userName} - ${sels.length}种设备`,
+            start:r.start_date,
+            end:r.end_date,
+            allDay:true,
+            backgroundColor:color.bg,
+            borderColor:color.border,
+            textColor:'#fff',
+            extendedProps:{ reservation: r }
+          });
         }
       }
       calendarInstance.removeAllEvents();
@@ -526,80 +551,27 @@ const app = createApp({
       });
     }
 
-    function renderDayContent(info) {
-      const dateStr=info.date.getFullYear()+'-'+String(info.date.getMonth()+1).padStart(2,'0')+'-'+String(info.date.getDate()).padStart(2,'0');
-      const allRes=allReservations.value;
-      const dayRes=allRes.filter(r=>r.status==='active'&&dateStr>=r.start_date&&dateStr<=r.end_date);
-
-      if(!dayRes.length) return;
-
-      // 设备占用统计
-      const eqOcc={};
-      for(const r of dayRes) {
-        const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
-        for(const sel of sels) {
-          eqOcc[sel.eq_id]=(eqOcc[sel.eq_id]||0)+sel.qty;
-        }
+    // ===== 鼠标浮窗（单条预约） =====
+    function showSingleTooltip(e, r) {
+      const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
+      let html=`<div class="tooltip-title">${r.user_name||'未知'} 的预约</div>`;
+      html+=`<div class="tooltip-item">📅 ${r.start_date} ~ ${r.end_date}</div>`;
+      for(const sel of sels) {
+        const eq=equipmentList.value.find(e=>e.id===sel.eq_id);
+        html+=`<div class="tooltip-item">📋 ${eq?.name||'设备'} x${sel.qty}</div>`;
       }
-
-      // 人员占用统计
-      let busyPersonCount=0;
-      for(const a of personnelAssignments.value) {
-        if(dateStr>=a.start_date&&dateStr<=a.end_date) busyPersonCount++;
-      }
-
-      let html='<div class="fc-day-avail">';
-      for(const [eqIdStr,occupied] of Object.entries(eqOcc)) {
-        const eqId=parseInt(eqIdStr);
-        const eq=equipmentList.value.find(e=>e.id===eqId);
-        const total = equipmentUnits.value.filter(u => u.equipment_id === eqId).length;
-        const available = total - occupied;
-        if(eq) html+=`<div class="eq-occ">${eq.name} ${available}/${total}</div>`;
-      }
-      if(personnel.value.length>0) {
-        html+=`<div class="ppl-occ">无线小队 ${busyPersonCount}/${personnel.value.length}</div>`;
-      }
-      html+='</div>';
-      const el=info.el.querySelector('.fc-daygrid-day-events')||info.el;
-      const existing=el.querySelector('.fc-day-avail');
-      if(!existing) el.insertAdjacentHTML('beforeend',html);
-    }
-
-    async function bindDayEvents(info) {
-      const dateStr=info.date.getFullYear()+'-'+String(info.date.getMonth()+1).padStart(2,'0')+'-'+String(info.date.getDate()).padStart(2,'0');
-      const el=info.el;
-      el.addEventListener('mouseenter',async (e)=>{await showDayTooltip(e,dateStr);});
-      el.addEventListener('mouseleave',()=>{tooltipData.value.show=false;});
-      el.addEventListener('mousemove',(e)=>{if(tooltipData.value.show){tooltipData.value.x=e.clientX+10;tooltipData.value.y=e.clientY+10;}});
-    }
-
-    async function showDayTooltip(e,dateStr) {
-      const allRes=allReservations.value;
-      const dayRes=allRes.filter(r=>r.status==='active'&&dateStr>=r.start_date&&dateStr<=r.end_date);
-      const dayAssign=personnelAssignments.value.filter(a=>dateStr>=a.start_date&&dateStr<=a.end_date);
-
-      if(!dayRes.length&&!dayAssign.length){tooltipData.value.show=false;return;}
-
-      let html=`<div class="tooltip-title">${dateStr} 预约详情</div>`;
-
-      // 设备预约
-      for(const r of dayRes) {
-        const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
-        for(const sel of sels) {
-          const eq=equipmentList.value.find(e=>e.id===sel.eq_id);
-          html+=`<div class="tooltip-item">📋 ${eq?.name||'设备'} x${sel.qty}<br/><span class="tooltip-more">预约人: ${r.user_name||'未知'} | 国家: ${r.country||'-'} | 用途: ${r.purpose||'-'}</span></div>`;
-        }
-      }
-
-      // 人员占用
-      if(dayAssign.length) {
-        html+=`<div class="tooltip-section-title">👤 人员占用</div>`;
-        for(const a of dayAssign) {
-          html+=`<div class="tooltip-item">${a.personnel?.name||'未知'} - ${a.task_description||'任务'} (${a.start_date}~${a.end_date})</div>`;
-        }
-      }
-
+      html+=`<div class="tooltip-item">🌍 ${r.country||'-'} | 用途: ${r.purpose||'-'}</div>`;
       tooltipData.value={show:true,x:e.clientX+10,y:e.clientY+10,content:html};
+    }
+
+    // ===== 当日预约详情弹窗 =====
+    function openDayReservations(dateStr) {
+      const dayRes=allReservations.value.filter(r=>
+        r.status==='active'&&dateStr>=r.start_date&&dateStr<=r.end_date
+      );
+      dayReservationsDate.value=dateStr;
+      dayReservationsList.value=dayRes;
+      showDayReservations.value=true;
     }
 
     // ===== 初始化 =====
@@ -635,7 +607,8 @@ const app = createApp({
       showBookingModal, bookingDate, bookingStart, bookingEnd,
       bookingCountry, bookingPurpose, bookingLoading,
       bookingEquipmentSel, bookingPersonnelSel,
-      isLoggedIn, isAdmin, roleLabel, menuItems, dashboardStats, countryList,
+      showDayReservations, dayReservationsDate, dayReservationsList,
+      isLoggedIn, isAdmin, roleLabel, menuItems, dashboardStats, countryList, eventColors,
       doLogin, doRegister, doLogout, switchPage, toggleSidebar, toggleViewMode,
       statusLabel, roleLabelFor,
       unitName, reservationDescription,
@@ -643,7 +616,7 @@ const app = createApp({
       openPersonnelForm, savePersonnel, deletePersonnel,
       openTaskForm, tasksForPerson, saveTask, deleteTask,
       openBookingModal, getDateAvailable, toggleBookingEquipment, setBookingEqQty, toggleBookingPerson, submitBooking,
-      cancelReservation
+      cancelReservation, openDayReservations
     };
   }
 });
