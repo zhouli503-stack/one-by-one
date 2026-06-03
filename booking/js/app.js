@@ -258,6 +258,14 @@ const app = createApp({
         showEquipmentForm.value = false;
         editingEquipment.value = null;
         eqForm.value = { name: '', serial_no: '', params: '', accessories: '', custodian: '', location: '', notes: '' };
+        // 清理无单元的空壳设备类型
+        for (const eq of equipmentList.value) {
+          const count = equipmentUnits.value.filter(u => u.equipment_id === eq.id).length;
+          if (count === 0) {
+            await supabase.from('equipment').delete().eq('id', eq.id);
+          }
+        }
+        await loadEquipment();
         await loadEquipmentUnits();
       } catch (err) { showToast(err.message || '操作失败', 'error'); }
       finally { saving.value = false; }
