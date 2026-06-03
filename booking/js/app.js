@@ -118,6 +118,21 @@ const app = createApp({
       return items;
     });
 
+    // 今日被占用的设备单元ID集合
+    const todayOccupiedIds = computed(() => {
+      const ids = new Set();
+      const today = new Date().toISOString().slice(0, 10);
+      for (const r of allReservations.value) {
+        if (r.status !== 'active') continue;
+        if (today < r.start_date || today > r.end_date) continue;
+        const sels = typeof r.equipment_selections === 'string' ? JSON.parse(r.equipment_selections) : (r.equipment_selections || []);
+        for (const sel of sels) {
+          (sel.unit_ids || []).forEach(uid => ids.add(uid));
+        }
+      }
+      return ids;
+    });
+
     // 仪表盘展开详情（按设备名称分组，显示剩余/总数）
     const equipmentDetail = computed(() => {
       const groups = {};
@@ -126,7 +141,7 @@ const app = createApp({
         const name = eq?.name || '未知';
         if (!groups[name]) groups[name] = { name, occupied: 0, total: 0 };
         groups[name].total++;
-        if (u.status === 'occupied') groups[name].occupied++;
+        if (todayOccupiedIds.value.has(u.id)) groups[name].occupied++;
       });
       return Object.values(groups).map(g => ({ ...g, available: g.total - g.occupied }));
     });
@@ -205,6 +220,7 @@ const app = createApp({
     async function loadAllData() {
       await Promise.all([loadEquipment(), loadEquipmentUnits(), loadPersonnel(), loadPersonnelAssignments(), loadUsers()]);
       loadMyReservations();
+      allReservations.value = await loadAllReservations();
     }
 
     async function loadEquipment() { const {data}=await supabase.from('equipment').select('*').order('id'); if(data) equipmentList.value=data; }
@@ -604,7 +620,7 @@ const app = createApp({
       user, userProfile, userList, toast, tooltipData,
       loginForm, regForm,
       equipmentList, equipmentUnits, personnel, personnelAssignments, myReservations, allReservations,
-      equipmentDetail, expandedEquipmentId,
+      equipmentDetail, expandedEquipmentId, todayOccupiedIds,
       showEquipmentForm, editingEquipment, eqForm,
       showPersonnelForm, personnelForm, editingPersonnelId,
       showTaskForm, taskPersonId, taskPersonName, taskForm,
