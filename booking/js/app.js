@@ -481,11 +481,25 @@ const app = createApp({
     async function renderCalendarEvents() {
       if(!calendarInstance) return;
       const allRes=allReservations.value;
+      const eventColors=[
+        {bg:'rgba(168,85,247,0.4)',border:'#a855f7'},  // 紫
+        {bg:'rgba(6,182,212,0.4)', border:'#06b6d4'},   // 青
+        {bg:'rgba(34,197,94,0.4)', border:'#22c55e'},   // 绿
+        {bg:'rgba(234,179,8,0.4)', border:'#eab308'},   // 黄
+        {bg:'rgba(249,115,22,0.4)',border:'#f97316'},   // 橙
+        {bg:'rgba(236,72,153,0.4)',border:'#ec4899'},   // 粉
+        {bg:'rgba(59,130,246,0.4)',border:'#3b82f6'},   // 蓝
+        {bg:'rgba(239,68,68,0.4)', border:'#ef4444'},   // 红
+        {bg:'rgba(20,184,166,0.4)',border:'#14b8a6'},   // 青绿
+        {bg:'rgba(99,102,241,0.4)',border:'#6366f1'},   // 靛蓝
+      ];
       const events=[];
       for(const r of allRes) {
         const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
         if(sels.length){
-          events.push({title:`${sels.length}种设备`,start:r.start_date,end:r.end_date,allDay:true,backgroundColor:'rgba(168,85,247,0.4)',borderColor:'#a855f7',textColor:'#fff'});
+          const color=eventColors[r.id % eventColors.length];
+          const userName=r.user_name||'未知';
+          events.push({title:`${userName} - ${sels.length}种设备`,start:r.start_date,end:r.end_date,allDay:true,backgroundColor:color.bg,borderColor:color.border,textColor:'#fff'});
         }
       }
       calendarInstance.removeAllEvents();
@@ -573,7 +587,7 @@ const app = createApp({
         const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
         for(const sel of sels) {
           const eq=equipmentList.value.find(e=>e.id===sel.eq_id);
-          html+=`<div class="tooltip-item">📋 ${eq?.name||'设备'} x${sel.qty}<br/><span class="tooltip-more">预约人: ${(userList.value.find(u=>u.id===r.user_id)?.full_name)||'未知'} | 国家: ${r.country||'-'} | 用途: ${r.purpose||'-'}</span></div>`;
+          html+=`<div class="tooltip-item">📋 ${eq?.name||'设备'} x${sel.qty}<br/><span class="tooltip-more">预约人: ${r.user_name||'未知'} | 国家: ${r.country||'-'} | 用途: ${r.purpose||'-'}</span></div>`;
         }
       }
 
