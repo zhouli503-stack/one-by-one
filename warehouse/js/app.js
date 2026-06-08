@@ -287,10 +287,22 @@ const app = createApp({
         // 写入盘点记录
         for (const rec of records) {
           await supabase.from('warehouse_inventory_records').insert(rec);
+          // 根据差异生成操作记录
+          const transType = rec.difference > 0 ? 'new' : 'scrap';
+          await supabase.from('warehouse_transactions').insert({
+            item_id: rec.item_id,
+            type: transType,
+            quantity: Math.abs(rec.difference),
+            handler: '',
+            purpose: '库存盘点',
+            notes: rec.notes || `盘点${transType==='new'?'盈':'亏'} ${Math.abs(rec.difference)} 个`,
+            operator_id: profile.value?.id
+          });
           // 更新账面库存
+          const item = items.value.find(i => i.id === rec.item_id);
           await supabase.from('warehouse_items').update({
             available_qty: rec.actual_qty,
-            total_qty: rec.difference > 0 ? rec.actual_qty + (items.value.find(i=>i.id===rec.item_id)?.total_qty||0) : rec.actual_qty
+            total_qty: (item?.total_qty || 0) + rec.difference
           }).eq('id', rec.item_id);
         }
         invMsg.value = `盘点完成，${records.length} 项有差异已修正`;
