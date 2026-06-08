@@ -4,25 +4,205 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>售后库房管理系统</title>
-  <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-    body{height:100vh;display:flex;align-items:center;justify-content:center;background:#1D1F27;color:#E8E9ED;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;padding:20px;}
-    .card{background:#2A2D37;border:1px solid #363946;border-radius:16px;padding:60px 40px;max-width:400px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.4);}
-    .icon{font-size:64px;margin-bottom:20px;}
-    h1{font-size:22px;margin-bottom:8px;}
-    p{color:#9CA0AC;font-size:14px;margin-bottom:4px;}
-    .tag{display:inline-block;margin-top:16px;padding:4px 16px;border-radius:20px;background:rgba(6,182,212,0.15);color:#06b6d4;font-size:12px;}
-    a{display:inline-block;margin-top:24px;padding:10px 24px;border-radius:8px;background:linear-gradient(135deg,#a855f7,#06b6d4);color:white;text-decoration:none;font-weight:500;font-size:14px;transition:all 0.2s;}
-    a:hover{box-shadow:0 4px 15px rgba(168,85,247,0.3);transform:translateY(-1px);}
-  </style>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
-  <div class="card">
-    <div class="icon">📦</div>
-    <h1>售后库房管理系统</h1>
-    <p>正在筹备中，敬请期待</p>
-    <div class="tag">即将上线</div>
-    <a href="../portal/index.html">🏠 返回门户</a>
+  <div id="app">
+    <!-- ===== 加载中 ===== -->
+    <div v-if="page === 'loading'" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg-primary);flex-direction:column;gap:16px;">
+      <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--a-mid);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      <p style="color:var(--text-tertiary);font-size:14px;">加载中...</p>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+    <!-- ===== 主应用布局 ===== -->
+    <div v-if="loggedIn" :class="['app-layout',mobileView?'mobile-view':'desktop-view']">
+      <!-- 移动端顶部 -->
+      <div v-if="mobileView" class="mobile-topbar">
+        <button class="mobile-menu-btn" @click="showNav=!showNav">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="mobile-title">库房管理</div>
+      </div>
+
+      <!-- 移动端侧滑 -->
+      <div v-if="mobileView&&showNav" class="mobile-nav-overlay" @click="showNav=false">
+        <aside class="mobile-nav-panel" @click.stop>
+          <div class="sidebar-header" style="border:none;">
+            <div class="sidebar-logo"><svg width="32" height="32" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="url(#g)"/><path d="M12 20L18 26L28 14" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><defs><linearGradient id="g" x1="0" y1="0" x2="40" y2="40"><stop stop-color="#a855f7"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs></svg><span class="sidebar-title">库房管理</span></div>
+            <button class="modal-close" @click="showNav=false">&times;</button>
+          </div>
+          <nav class="sidebar-nav">
+            <a v-for="item in menu" :key="item.id" :class="['nav-item',{active:page===item.id}]" href="#" @click.prevent="page=item.id;showNav=false">
+              <span class="nav-icon" v-html="item.icon"></span><span class="nav-label">{{ item.label }}</span>
+            </a>
+            <a class="nav-item" href="../portal/index.html"><span class="nav-icon">🏠</span><span class="nav-label">返回门户</span></a>
+          </nav>
+        </aside>
+      </div>
+
+      <!-- 桌面侧边栏 -->
+      <aside v-if="!mobileView" class="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-logo">
+            <svg width="32" height="32" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="url(#g)"/><path d="M12 20L18 26L28 14" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><defs><linearGradient id="g" x1="0" y1="0" x2="40" y2="40"><stop stop-color="#a855f7"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs></svg>
+            <span class="sidebar-title">库房管理</span>
+          </div>
+        </div>
+        <nav class="sidebar-nav">
+          <a v-for="item in menu" :key="item.id" :class="['nav-item',{active:page===item.id}]" href="#" @click.prevent="page=item.id">
+            <span class="nav-icon" v-html="item.icon"></span><span class="nav-label">{{ item.label }}</span>
+          </a>
+          <a class="nav-item" href="../portal/index.html">
+            <span class="nav-icon">🏠</span><span class="nav-label">返回门户</span>
+          </a>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="user-info-mini">
+            <div class="user-avatar">{{ profile?.full_name?.charAt(0)||'U' }}</div>
+            <div class="user-meta"><div class="user-name">{{ profile?.full_name||'用户' }}</div><div class="user-role">{{ roleName }}</div></div>
+          </div>
+          <button class="btn btn-sm btn-ghost" style="margin-top:8px;" @click="toggleMobile">📱 手机版</button>
+        </div>
+      </aside>
+
+      <!-- 主内容 -->
+      <main class="main-content">
+
+        <!-- 仪表盘 -->
+        <div v-if="page==='dashboard'" class="page">
+          <div class="page-header"><h2>仪表盘</h2></div>
+          <div class="stats-grid">
+            <div class="stat-card"><div class="stat-icon" style="background:rgba(168,85,247,0.15)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><div><div class="stat-number">{{ stats.totalItems }}</div><div class="stat-label">库存总项数</div></div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:rgba(250,204,21,0.15)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="stat-number">{{ stats.totalQty }}</div><div class="stat-label">总数量</div></div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:rgba(34,197,94,0.15)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="stat-number">{{ stats.availableQty }}</div><div class="stat-label">可用总数</div></div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:rgba(59,130,246,0.15)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="stat-number">{{ stats.todayOps }}</div><div class="stat-label">今日操作数</div></div></div>
+          </div>
+        </div>
+
+        <!-- 库存列表 -->
+        <div v-if="page==='items'" class="page">
+          <div class="page-header"><h2>库存列表</h2><div><button class="btn btn-primary" @click="openItemForm(null)">+ 新增物品</button></div></div>
+          <div style="margin-bottom:12px;"><input v-model="itemSearch" type="text" placeholder="搜索物品名称/编码/需求人..." class="search-input"/></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>物品编码</th><th>名称</th><th>说明</th><th>需求人</th><th>库存</th><th>位置</th><th>分类/单位</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr v-for="it in filteredItems" :key="it.id">
+                  <td><code>{{ it.code }}</code></td>
+                  <td><strong>{{ it.name }}</strong></td>
+                  <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.description||'-' }}</td>
+                  <td>{{ it.requester||'-' }}</td>
+                  <td><span class="badge" :class="it.available_qty>0?'badge-available':'badge-occupied'">{{ it.available_qty }}/{{ it.total_qty }}</span></td>
+                  <td>{{ it.location||'-' }}</td>
+                  <td>{{ it.category||'-' }} / {{ it.unit||'-' }}</td>
+                  <td><button class="btn btn-sm btn-ghost" @click="openItemForm(it)">编辑</button><button class="btn btn-sm btn-danger" @click="deleteItem(it.id)">删除</button></td>
+                </tr>
+                <tr v-if="filteredItems.length===0"><td colspan="8" class="empty-td">暂无数据</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 借出/归还登记 -->
+        <div v-if="page==='transaction'" class="page">
+          <div class="page-header"><h2>借出/归还登记</h2></div>
+          <div class="form-card">
+            <div class="form-group"><label>物品 *</label><select v-model="transItem"><option value="">-- 请选择 --</option><option v-for="it in items" :key="it.id" :value="it.id">{{ it.name }} ({{ it.code }}) - {{ it.requester||'未知' }}</option></select></div>
+            <div class="form-group"><label>操作类型 *</label><select v-model="transType"><option value="">-- 请选择 --</option><option value="lend">借出</option><option value="return">归还</option></select></div>
+            <div class="form-group"><label>数量 *</label><input v-model.number="transQty" type="number" min="1" placeholder="输入数量"/></div>
+            <div class="form-row">
+              <div class="form-group"><label>经手人</label><input v-model="transHandler" type="text" placeholder="领用人/交接人"/></div>
+              <div class="form-group"><label>用途说明</label><input v-model="transPurpose" type="text" placeholder="用途原因"/></div>
+            </div>
+            <div class="form-group"><label>备注</label><textarea v-model="transNotes" placeholder="补充说明"></textarea></div>
+            <button class="btn btn-primary" @click="submitTransaction" :disabled="saving">{{ saving?'提交中...':'确认登记' }}</button>
+            <div v-if="transError" class="form-error">{{ transError }}</div>
+          </div>
+        </div>
+
+        <!-- 操作记录 -->
+        <div v-if="page==='records'" class="page">
+          <div class="page-header"><h2>操作记录</h2></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <input v-model="recordSearch" type="text" placeholder="搜索物品" class="search-input" style="max-width:200px;"/>
+            <select v-model="recordType" class="search-input" style="max-width:130px;"><option value="">全部类型</option><option value="new">新增</option><option value="lend">借出</option><option value="return">归还</option><option value="scrap">报废</option></select>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>时间</th><th>物品</th><th>类型</th><th>数量</th><th>经手人</th><th>用途</th><th>操作人</th><th>备注</th></tr></thead>
+              <tbody>
+                <tr v-for="r in filteredRecords" :key="r.id">
+                  <td style="white-space:nowrap;">{{ r.created_at?.slice(0,16) }}</td>
+                  <td><strong>{{ itemName(r.item_id) }}</strong></td>
+                  <td><span :class="'badge badge-type-'+r.type">{{ typeLabel(r.type) }}</span></td>
+                  <td :style="{color:['lend','scrap'].includes(r.type)?'var(--danger)':'var(--success)'}">{{ ['lend','scrap'].includes(r.type)?'-':'' }}{{ r.quantity }}</td>
+                  <td>{{ r.handler||'-' }}</td>
+                  <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.purpose||'-' }}</td>
+                  <td>{{ r.operator_name||'-' }}</td>
+                  <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.notes||'-' }}</td>
+                </tr>
+                <tr v-if="filteredRecords.length===0"><td colspan="8" class="empty-td">暂无记录</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 库存盘点 -->
+        <div v-if="page==='inventory'" class="page">
+          <div class="page-header"><h2>库存盘点</h2></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>物品名称</th><th>编码</th><th>账面库存</th><th>实盘数量</th><th>差异</th><th>差异说明</th></tr></thead>
+              <tbody>
+                <tr v-for="it in items" :key="it.id">
+                  <td><strong>{{ it.name }}</strong></td>
+                  <td><code>{{ it.code }}</code></td>
+                  <td>{{ it.available_qty }}</td>
+                  <td><input v-model.number="invActual[it.id]" type="number" min="0" class="inv-input" :placeholder="String(it.available_qty)"/></td>
+                  <td :style="{color:(invActual[it.id]||it.available_qty)-it.available_qty!==0?'var(--warning)':'inherit'}">{{ (invActual[it.id]||it.available_qty)-it.available_qty }}</td>
+                  <td><input v-model="invNotes[it.id]" type="text" class="inv-input" placeholder="有差异时填写原因"/></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <button class="btn btn-primary" @click="submitInventory" :disabled="saving">{{ saving?'提交中...':'提交盘点' }}</button>
+          <div v-if="invMsg" :style="{marginTop:'10px',padding:'10px',borderRadius:'var(--radius)',background:invMsgType==='success'?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.1)',color:invMsgType==='success'?'var(--success)':'var(--danger)'}">{{ invMsg }}</div>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- ===== 物品表单弹窗 ===== -->
+    <div v-if="showItemForm" class="modal-overlay" @click.self="showItemForm=false">
+      <div class="modal">
+        <div class="modal-header"><h3>{{ editingItem?'编辑物品':'新增物品' }}</h3><button class="modal-close" @click="showItemForm=false">&times;</button></div>
+        <div class="modal-body">
+          <div class="form-group"><label>资产名称 *</label><input v-model="itemForm.name" type="text"/></div>
+          <div class="form-group"><label>资产编码 *</label><input v-model="itemForm.code" type="text"/></div>
+          <div class="form-group"><label>资产说明</label><textarea v-model="itemForm.description"></textarea></div>
+          <div class="form-group"><label>需求人</label><input v-model="itemForm.requester" type="text"/></div>
+          <div class="form-row">
+            <div class="form-group"><label>总数量</label><input v-model.number="itemForm.total_qty" type="number" min="0"/></div>
+            <div class="form-group"><label>可用数量</label><input v-model.number="itemForm.available_qty" type="number" min="0"/></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>存放位置</label><input v-model="itemForm.location" type="text"/></div>
+            <div class="form-group"><label>分类</label><input v-model="itemForm.category" type="text" placeholder="设备/备件/耗材/工具"/></div>
+          </div>
+          <div class="form-group"><label>单位</label><input v-model="itemForm.unit" type="text" placeholder="台/个/套/箱"/></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost" @click="showItemForm=false">取消</button><button class="btn btn-primary" @click="saveItem" :disabled="saving">{{ saving?'保存中...':'保存' }}</button></div>
+      </div>
+    </div>
+
+    <!-- ===== Toast ===== -->
+    <div v-if="toast.show" :class="'toast toast-'+toast.type">{{ toast.message }}</div>
   </div>
+
+  <script src="js/app.js"></script>
 </body>
 </html>
