@@ -341,6 +341,7 @@
       <div class="modal modal-booking">
         <div class="modal-header"><h3>预约 - {{ bookingDate }}</h3><button class="modal-close" @click="showBookingModal=false">&times;</button></div>
         <div class="modal-body">
+          <div v-if="bookingError" class="booking-error">{{ bookingError }}</div>
           <p style="font-size:13px;color:var(--text-tertiary);margin-bottom:12px;">选择设备和数量（可多选）</p>
           <div v-for="eq in equipmentList" :key="eq.id" :class="['eq-select-item',{selected:bookingEquipmentSel[eq.id]}]" @click="toggleBookingEquipment(eq.id)">
             <input type="checkbox" :checked="!!bookingEquipmentSel[eq.id]" @click.stop="toggleBookingEquipment(eq.id)"/>
@@ -369,7 +370,6 @@
             </div>
           </div>
         </div>
-        <div v-if="bookingError" class="booking-error">{{ bookingError }}</div>
         <div class="modal-footer">
           <button class="btn btn-ghost" @click="showBookingModal=false">取消</button>
           <button class="btn btn-primary" @click="submitBooking" :disabled="bookingLoading">{{ bookingLoading?'提交中...':'确认预约' }}</button>
