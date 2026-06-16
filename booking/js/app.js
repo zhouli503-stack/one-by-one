@@ -389,53 +389,58 @@ const app = createApp({
         const start=new Date(bookingStart.value);
         const end=new Date(bookingEnd.value);
         const existingReservations = await loadAllReservations();
+        const dateRange = bookingStart.value+' 至 '+bookingEnd.value;
 
-        for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)) {
-          const dateStr=d.toISOString().slice(0,10);
+        // 收集所有设备冲突
+        const conflictMsgs=[];
+        for(const [eqIdStr,qty] of eqEntries) {
+          const eqId=parseInt(eqIdStr);
+          const eqName=equipmentList.value.find(e=>e.id===eqId)?.name||eqId;
+          const totalUnits=equipmentUnits.value.filter(u=>u.equipment_id===eqId);
+          if(!totalUnits.length) continue;
 
-          // 设备检查
-          for(const [eqIdStr,qty] of eqEntries) {
-            const eqId=parseInt(eqIdStr);
-            const totalUnits=equipmentUnits.value.filter(u=>u.equipment_id===eqId);
+          let hasConflict=false;
+          const conflictUsers=new Set();
+          for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)) {
+            const dateStr=d.toISOString().slice(0,10);
             const occupiedIds=new Set();
             for(const r of existingReservations) {
               if(r.status!=='active') continue;
               if(dateStr<r.start_date||dateStr>r.end_date) continue;
               const selections=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
               for(const sel of selections) {
-                if(sel.eq_id===eqId) (sel.unit_ids||[]).forEach(uid=>occupiedIds.add(uid));
-              }
-            }
-            const available=totalUnits.filter(u=>!occupiedIds.has(u.id)).length;
-            console.warn('[DEBUG] 设备检查', dateStr, eqId, '可用:', available, '需要:', qty, '单元数:', totalUnits.length, '占用unit_ids:', [...occupiedIds]);
-            if(available<qty) {
-              const eqName=equipmentList.value.find(e=>e.id===eqId)?.name||eqId;
-              // 找出谁占用了这个设备
-              const conflictUsers=new Set();
-              for(const r of existingReservations) {
-                if(r.status!=='active') continue;
-                if(dateStr<r.start_date||dateStr>r.end_date) continue;
-                const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
-                for(const sel of sels) {
-                  if(sel.eq_id===eqId) conflictUsers.add(r.user_name||'未知');
+                if(sel.eq_id===eqId) {
+                  (sel.unit_ids||[]).forEach(uid=>occupiedIds.add(uid));
+                  conflictUsers.add(r.user_name||'未知');
                 }
               }
-              bookingError.value=dateStr+' '+eqName+' 已被 '+[...conflictUsers].join('、')+' 预约，请调整计划或与预约人沟通，谢谢！';
-              bookingLoading.value=false; return;
             }
+            if(totalUnits.filter(u=>!occupiedIds.has(u.id)).length<qty) hasConflict=true;
           }
+          if(hasConflict) conflictMsgs.push(eqName+' 已被 '+[...conflictUsers].join('、')+' 预约，请调整计划或与预约人沟通，谢谢！');
+        }
 
-          // 人员检查
-          if(bookingPersonnelSel.value.length>0) {
+        if(conflictMsgs.length) {
+          bookingError.value = dateRange+'\n'+conflictMsgs.join('\n');
+          bookingLoading.value=false; return;
+        }
+
+        // 人员检查（整个日期范围内）
+        if(bookingPersonnelSel.value.length>0) {
+          let personConflict=false;
+          for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)) {
+            const dateStr=d.toISOString().slice(0,10);
             const busyIds=new Set();
             for(const a of personnelAssignments.value) {
               if(dateStr>=a.start_date&&dateStr<=a.end_date) busyIds.add(a.person_id);
             }
-            const free=personnel.value.filter(p=>!busyIds.has(p.id)).length;
-            if(free<bookingPersonnelSel.value.length) {
-              bookingError.value=`${dateStr} 人员不足（仅${free}人空闲），请调整`;
-              bookingLoading.value=false; return;
+            if(personnel.value.filter(p=>!busyIds.has(p.id)).length<bookingPersonnelSel.value.length) {
+              personConflict=true; break;
             }
+          }
+          if(personConflict) {
+            bookingError.value=dateRange+' 所选人员在选定日期范围内有任务冲突，请调整';
+            bookingLoading.value=false; return;
           }
         }
 

@@ -195,7 +195,7 @@ a:hover { color:var(--a-end); }
   margin:0 24px 14px; padding:10px 14px;
   background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.35);
   border-radius:var(--radius); color:var(--danger); font-size:13px;
-  line-height:1.5; animation:fadeIn 0.2s ease;
+  line-height:1.5; white-space:pre-line; animation:fadeIn 0.2s ease;
 }
 
 /* ---- 日历 ---- */
