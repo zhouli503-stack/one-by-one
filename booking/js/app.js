@@ -609,7 +609,8 @@ const app = createApp({
       });
     }
 
-    // ===== 鼠标浮窗（单条预约） =====
+    // ===== 鼠标浮窗（单条预约，自动避让浏览器边缘） =====
+    let tooltipGen = 0;
     function showSingleTooltip(e, r) {
       const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
       let html=`<div class="tooltip-title">${r.user_name||'未知'} 的预约</div>`;
@@ -619,7 +620,25 @@ const app = createApp({
         html+=`<div class="tooltip-item">📋 ${eq?.name||'设备'} x${sel.qty}</div>`;
       }
       html+=`<div class="tooltip-item">🌍 ${r.country||'-'} | 用途: ${r.purpose||'-'}</div>`;
-      tooltipData.value={show:true,x:e.clientX+10,y:e.clientY+10,content:html};
+
+      // 先渲染到离屏位置，再测量后正确定位
+      tooltipGen++;
+      const gen=tooltipGen;
+      tooltipData.value={show:true,x:-9999,y:-9999,content:html};
+
+      nextTick(() => {
+        if(gen!==tooltipGen) return;  // 鼠标已移走或新浮窗已生成
+        const el=document.querySelector('.calendar-tooltip');
+        if(!el) return;
+        const rect=el.getBoundingClientRect();
+        let x=e.clientX+10, y=e.clientY+10;
+        // 水平超出则靠左
+        if(x+rect.width>window.innerWidth) x=e.clientX-rect.width-10;
+        // 垂直超出则靠上
+        if(y+rect.height>window.innerHeight) y=e.clientY-rect.height-10;
+        x=Math.max(10,x); y=Math.max(10,y);
+        tooltipData.value={show:true,x,y,content:html};
+      });
     }
 
     // ===== 当日预约详情弹窗 =====
