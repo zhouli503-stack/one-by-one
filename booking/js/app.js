@@ -408,7 +408,17 @@ const app = createApp({
             const available=totalUnits.filter(u=>!occupiedIds.has(u.id)).length;
             if(available<qty) {
               const eqName=equipmentList.value.find(e=>e.id===eqId)?.name||eqId;
-              showToast(`${dateStr} ${eqName}不足（仅剩${available}台），请调整`,'error');
+              // 找出谁占用了这个设备
+              const conflictUsers=new Set();
+              for(const r of existingReservations) {
+                if(r.status!=='active') continue;
+                if(dateStr<r.start_date||dateStr>r.end_date) continue;
+                const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[];
+                for(const sel of sels) {
+                  if(sel.eq_id===eqId) conflictUsers.add(r.user_name||'未知');
+                }
+              }
+              showToast(`${dateStr} ${eqName}已被${[...conflictUsers].join('、')}预约，请调整计划或与预约人沟通，谢谢！`,'error');
               bookingLoading.value=false; return;
             }
           }

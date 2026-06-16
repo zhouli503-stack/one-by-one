@@ -25,9 +25,6 @@
       <div class="auth-card" style="max-width:420px;width:100%;background:var(--bg-card);border-radius:var(--radius-xl);padding:40px;box-shadow:var(--shadow-lg);border:1px solid var(--border);">
         <div class="auth-header" style="text-align:center;margin-bottom:24px;">
           <h1 style="font-size:24px;font-weight:600;">演示预约系统</h1>
-          <p style="color:var(--text-tertiary);font-size:13px;">tea-pulse 统一登录</p>
-        </div>
-        <div class="notice-banner">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。</div>
         <div class="form-group"><label>登录名</label><input v-model="loginForm.login_name" type="text" placeholder="输入登录名" @keyup.enter="doLogin"/></div>
         <div class="form-group"><label>密码</label><input v-model="loginForm.password" type="password" placeholder="输入密码" @keyup.enter="doLogin"/></div>
         <div v-if="authError" style="background:rgba(239,68,68,0.1);color:var(--danger);padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;">{{ authError }}</div>
@@ -42,9 +39,6 @@
       <div class="auth-card" style="max-width:460px;width:100%;background:var(--bg-card);border-radius:var(--radius-xl);padding:40px;box-shadow:var(--shadow-lg);border:1px solid var(--border);">
         <div class="auth-header" style="text-align:center;margin-bottom:24px;">
           <h1 style="font-size:24px;font-weight:600;">注册新账号</h1>
-          <p style="color:var(--text-tertiary);font-size:13px;">请填写以下信息完成注册</p>
-        </div>
-        <div class="notice-banner">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。</div>
         <div class="form-row"><div class="form-group"><label>登录名 *</label><input v-model="regForm.login_name" type="text" placeholder="用于登录"/></div><div class="form-group"><label>密码 *</label><input v-model="regForm.password" type="password" placeholder="至少6位"/></div></div>
         <div class="form-row"><div class="form-group"><label>姓名 *</label><input v-model="regForm.full_name" type="text" placeholder="真实姓名"/></div><div class="form-group"><label>工号 *</label><input v-model="regForm.employee_id" type="text" placeholder="员工编号"/></div></div>
         <div class="form-group"><label>部门 *</label><input v-model="regForm.department" type="text" placeholder="所属部门"/></div>
@@ -128,7 +122,6 @@
 
       <!-- 主内容 -->
       <main class="main-content">
-        <div class="notice-banner notice-banner-main">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。系统维护不易，欢迎捐赠token ^^</div>
 
         <!-- 仪表盘 -->
         <div v-if="page==='dashboard'" class="page">
