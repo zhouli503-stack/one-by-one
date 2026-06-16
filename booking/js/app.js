@@ -406,6 +406,7 @@ const app = createApp({
               }
             }
             const available=totalUnits.filter(u=>!occupiedIds.has(u.id)).length;
+            console.warn('[DEBUG] 设备检查', dateStr, eqId, '可用:', available, '需要:', qty, '单元数:', totalUnits.length, '占用unit_ids:', [...occupiedIds]);
             if(available<qty) {
               const eqName=equipmentList.value.find(e=>e.id===eqId)?.name||eqId;
               // 找出谁占用了这个设备
