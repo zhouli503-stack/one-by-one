@@ -390,15 +390,16 @@ const app = createApp({
         const end=new Date(bookingEnd.value);
         const existingReservations = await loadAllReservations();
 
-        // 收集所有设备冲突（按设备分组，显示具体冲突日期）
-        const eqConflicts=[];  // [{eqName, days:[{date, users}]}]
+        // 收集所有设备冲突（按设备分组，连续日期合并为范围）
+        const eqConflicts=[];
         for(const [eqIdStr,qty] of eqEntries) {
           const eqId=parseInt(eqIdStr);
           const eqName=equipmentList.value.find(e=>e.id===eqId)?.name||eqId;
           const totalUnits=equipmentUnits.value.filter(u=>u.equipment_id===eqId);
           if(!totalUnits.length) continue;
 
-          const conflictDays=[];
+          // 收集每一天的冲突
+          const rawDays=[];
           for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)) {
             const dateStr=d.toISOString().slice(0,10);
             const occupiedIds=new Set();
@@ -415,11 +416,28 @@ const app = createApp({
               }
             }
             if(totalUnits.filter(u=>!occupiedIds.has(u.id)).length<qty) {
-              conflictDays.push(dateStr+'：被 '+[...dayUsers].join('、')+' 占用');
+              rawDays.push({date:dateStr, users:[...dayUsers].join('、')});
             }
           }
-          if(conflictDays.length) {
-            eqConflicts.push(eqName+'\n'+conflictDays.join('\n'));
+
+          if(rawDays.length) {
+            // 合并连续日期
+            const merged=[];
+            let seg={start:rawDays[0].date, end:rawDays[0].date, users:rawDays[0].users};
+            for(let i=1;i<rawDays.length;i++) {
+              const prev=new Date(rawDays[i-1].date);
+              const curr=new Date(rawDays[i].date);
+              const nextDay=new Date(prev); nextDay.setDate(nextDay.getDate()+1);
+              if(curr.getTime()===nextDay.getTime() && rawDays[i-1].users===rawDays[i].users) {
+                seg.end=rawDays[i].date;
+              } else {
+                merged.push(seg);
+                seg={start:rawDays[i].date, end:rawDays[i].date, users:rawDays[i].users};
+              }
+            }
+            merged.push(seg);
+            const lines=merged.map(s => s.start===s.end ? s.start+'：被 '+s.users+' 占用' : s.start+' - '+s.end+'：被 '+s.users+' 占用');
+            eqConflicts.push(eqName+'\n'+lines.join('\n'));
           }
         }
 
