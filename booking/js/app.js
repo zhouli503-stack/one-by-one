@@ -246,25 +246,27 @@ const app = createApp({
       if (!f.name || !f.serial_no) { showToast('请填写资产名称和编号', 'error'); return; }
       saving.value = true;
       try {
-        // 查找或创建设备类型
-        let eq = equipmentList.value.find(e => e.name === f.name);
-        if (!eq) {
-          const { data, error } = await supabase.from('equipment').insert({ name: f.name, code: 'EQ-' + Date.now() }).select();
-          if (error) throw error;
-          eq = data[0];
-          await loadEquipment();
-        }
-
         if (editingEquipment.value) {
-          // 更新已有单元
+          // 编辑已有单元：保持原有 equipment_id，只更新名称和单元信息
+          const oldEq = equipmentList.value.find(e => e.id === editingEquipment.value.equipment_id);
+          if (oldEq && oldEq.name !== f.name) {
+            await supabase.from('equipment').update({ name: f.name }).eq('id', oldEq.id);
+          }
           await supabase.from('equipment_units').update({
-            equipment_id: eq.id, serial_no: f.serial_no, custodian: f.custodian,
+            equipment_id: editingEquipment.value.equipment_id,
+            serial_no: f.serial_no, custodian: f.custodian,
             params: f.params, accessories: f.accessories,
             current_location: f.location, notes: f.notes
           }).eq('id', editingEquipment.value.id);
           showToast('资产已更新', 'success');
         } else {
-          // 新增单元
+          // 新增单元：查找或创建设备类型
+          let eq = equipmentList.value.find(e => e.name === f.name);
+          if (!eq) {
+            const { data, error } = await supabase.from('equipment').insert({ name: f.name, code: 'EQ-' + Date.now() }).select();
+            if (error) throw error;
+            eq = data[0];
+          }
           await supabase.from('equipment_units').insert({
             equipment_id: eq.id, serial_no: f.serial_no, custodian: f.custodian,
             params: f.params, accessories: f.accessories,
@@ -275,7 +277,9 @@ const app = createApp({
         showEquipmentForm.value = false;
         editingEquipment.value = null;
         eqForm.value = { name: '', serial_no: '', params: '', accessories: '', custodian: '', location: '', notes: '' };
-        // 清理无单元的空壳设备类型
+        await loadEquipment();
+        await loadEquipmentUnits();
+        // 清理新增时可能产生的空壳设备类型
         for (const eq of equipmentList.value) {
           const count = equipmentUnits.value.filter(u => u.equipment_id === eq.id).length;
           if (count === 0) {
