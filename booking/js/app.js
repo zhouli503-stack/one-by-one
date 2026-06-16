@@ -418,7 +418,7 @@ const app = createApp({
                   if(sel.eq_id===eqId) conflictUsers.add(r.user_name||'未知');
                 }
               }
-              showToast(`${dateStr} ${eqName}已被${[...conflictUsers].join('、')}预约，请调整计划或与预约人沟通，谢谢！`,'error');
+              showToast(dateStr+' '+eqName+' 已被 '+[...conflictUsers].join('、')+' 预约，请调整计划或与预约人沟通，谢谢！','error');
               bookingLoading.value=false; return;
             }
           }
