@@ -190,6 +190,14 @@ a:hover { color:var(--a-end); }
 .modal-body { padding:20px 24px; }
 .modal-footer { display:flex; justify-content:flex-end; gap:10px; padding:0 24px 20px; }
 
+/* ---- 预约弹窗错误提示 ---- */
+.booking-error {
+  margin:0 24px 14px; padding:10px 14px;
+  background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.35);
+  border-radius:var(--radius); color:var(--danger); font-size:13px;
+  line-height:1.5; animation:fadeIn 0.2s ease;
+}
+
 /* ---- 日历 ---- */
 .calendar-container { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; }
 .fc {

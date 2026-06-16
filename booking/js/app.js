@@ -67,6 +67,7 @@ const app = createApp({
     const bookingLoading = ref(false);
     const bookingEquipmentSel = ref({});  // { eqId: quantity }
     const bookingPersonnelSel = ref([]);  // [personId]
+    const bookingError = ref('');
 
     // 当日预约详情弹窗
     const showDayReservations = ref(false);
@@ -339,7 +340,7 @@ const app = createApp({
     async function openBookingModal(date) {
       bookingDate.value=date; bookingStart.value=date; bookingEnd.value=date;
       bookingCountry.value=''; bookingPurpose.value='';
-      bookingEquipmentSel.value={}; bookingPersonnelSel.value=[];
+      bookingEquipmentSel.value={}; bookingPersonnelSel.value=[]; bookingError.value='';
       // 刷新预约数据，用于计算可用设备数
       allReservations.value = await loadAllReservations();
       showBookingModal.value=true;
@@ -378,11 +379,11 @@ const app = createApp({
 
     async function submitBooking() {
       const eqEntries=Object.entries(bookingEquipmentSel.value).filter(([_,q])=>q>0);
-      if(!eqEntries.length){showToast('请选择设备','error');return;}
-      if(!bookingStart.value||!bookingEnd.value){showToast('请选择日期','error');return;}
-      if(!bookingCountry.value){showToast('请选择国家','error');return;}
+      if(!eqEntries.length){bookingError.value='请选择设备';return;}
+      if(!bookingStart.value||!bookingEnd.value){bookingError.value='请选择日期';return;}
+      if(!bookingCountry.value){bookingError.value='请选择国家';return;}
 
-      bookingLoading.value=true;
+      bookingLoading.value=true; bookingError.value='';
       try {
         // 遍历每一天检查设备和人员
         const start=new Date(bookingStart.value);
@@ -419,7 +420,7 @@ const app = createApp({
                   if(sel.eq_id===eqId) conflictUsers.add(r.user_name||'未知');
                 }
               }
-              showToast(dateStr+' '+eqName+' 已被 '+[...conflictUsers].join('、')+' 预约，请调整计划或与预约人沟通，谢谢！','error');
+              bookingError.value=dateStr+' '+eqName+' 已被 '+[...conflictUsers].join('、')+' 预约，请调整计划或与预约人沟通，谢谢！';
               bookingLoading.value=false; return;
             }
           }
@@ -432,7 +433,7 @@ const app = createApp({
             }
             const free=personnel.value.filter(p=>!busyIds.has(p.id)).length;
             if(free<bookingPersonnelSel.value.length) {
-              showToast(`${dateStr} 人员不足（仅${free}人空闲），请调整`,'error');
+              bookingError.value=`${dateStr} 人员不足（仅${free}人空闲），请调整`;
               bookingLoading.value=false; return;
             }
           }
@@ -476,7 +477,7 @@ const app = createApp({
         showBookingModal.value=false;
         await loadMyReservations(); await loadEquipmentUnits();
         if(calendarInstance) setTimeout(() => refreshCalendar(), 500);
-      } catch(err) { showToast(err.message||'预约失败','error'); }
+      } catch(err) { bookingError.value=err.message||'预约失败'; }
       finally { bookingLoading.value=false; }
     }
 
@@ -637,7 +638,7 @@ const app = createApp({
       showTaskForm, taskPersonId, taskPersonName, taskForm,
       showBookingModal, bookingDate, bookingStart, bookingEnd,
       bookingCountry, bookingPurpose, bookingLoading,
-      bookingEquipmentSel, bookingPersonnelSel,
+      bookingEquipmentSel, bookingPersonnelSel, bookingError,
       showDayReservations, dayReservationsDate, dayReservationsList,
       isLoggedIn, isAdmin, roleLabel, menuItems, dashboardStats, countryList, eventColors,
       doLogin, doRegister, doLogout, switchPage, toggleSidebar, toggleViewMode,

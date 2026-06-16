@@ -369,6 +369,7 @@
             </div>
           </div>
         </div>
+        <div v-if="bookingError" class="booking-error">{{ bookingError }}</div>
         <div class="modal-footer">
           <button class="btn btn-ghost" @click="showBookingModal=false">取消</button>
           <button class="btn btn-primary" @click="submitBooking" :disabled="bookingLoading">{{ bookingLoading?'提交中...':'确认预约' }}</button>
