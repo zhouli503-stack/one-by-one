@@ -18,7 +18,6 @@
           <h1>One-by-One 门户</h1>
           <p class="auth-subtitle">国际项目预约管理统一登录</p>
         </div>
-        <div class="notice-banner">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。系统维护不易，欢迎捐赠token ^^</div>
         <div class="auth-form">
           <div class="form-group">
             <label>登录名</label>
@@ -43,7 +42,6 @@
           <h1>注册新账号</h1>
           <p class="auth-subtitle">请填写以下信息完成注册</p>
         </div>
-        <div class="notice-banner">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。系统维护不易，欢迎捐赠token ^^</div>
         <div class="auth-form">
           <div class="form-row">
             <div class="form-group"><label>登录名 *</label><input v-model="regForm.login_name" type="text"/></div>
@@ -68,7 +66,6 @@
 
     <!-- ===== Portal 首页 ===== -->
     <div v-if="page === 'portal'" class="portal-page">
-      <div class="notice-banner" style="max-width:800px;width:100%;margin-bottom:24px;">📢 系统使用有问题找周力1000365，有安排冲突请联系预约人员进行沟通。系统维护不易，欢迎捐赠token ^^</div>
       <div class="portal-header">
         <div class="portal-user">
           <div class="portal-avatar">{{ profile?.full_name?.charAt(0) || 'U' }}</div>
