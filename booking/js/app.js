@@ -523,7 +523,7 @@ const app = createApp({
       const sels=typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections;
       return sels.map(s=>{
         const eq=equipmentList.value.find(e=>e.id===s.eq_id);
-        return `${eq?.name||'设备'} x${s.qty}`;
+        return `${eq?.name||'设备(#'+s.eq_id+')'} x${s.qty}`;
       }).join(', ');
     }
 
@@ -617,7 +617,8 @@ const app = createApp({
       html+=`<div class="tooltip-item">📅 ${r.start_date} ~ ${r.end_date}</div>`;
       for(const sel of sels) {
         const eq=equipmentList.value.find(e=>e.id===sel.eq_id);
-        html+=`<div class="tooltip-item">📋 ${eq?.name||'设备'} x${sel.qty}</div>`;
+        const eqName=eq?.name||'设备(#'+sel.eq_id+')';
+        html+=`<div class="tooltip-item">📋 ${eqName} x${sel.qty}</div>`;
       }
       html+=`<div class="tooltip-item">🌍 ${r.country||'-'} | 用途: ${r.purpose||'-'}</div>`;
 

@@ -391,7 +391,7 @@
             <div class="day-res-dates">{{ r.start_date }} ~ {{ r.end_date }}</div>
             <div class="day-res-detail">
               <div v-for="sel in (typeof r.equipment_selections==='string'?JSON.parse(r.equipment_selections):r.equipment_selections||[])">
-                {{ (equipmentList.find(e=>e.id===sel.eq_id)?.name||'设备') }} x{{ sel.qty }}
+                {{ (equipmentList.find(e=>e.id===sel.eq_id)?.name||'设备(#'+sel.eq_id+')') }} x{{ sel.qty }}
               </div>
               <div>国家: {{ r.country||'-' }} | 用途: {{ r.purpose||'-' }}</div>
             </div>
