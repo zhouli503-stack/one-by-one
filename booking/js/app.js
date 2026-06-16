@@ -389,21 +389,20 @@ const app = createApp({
         const start=new Date(bookingStart.value);
         const end=new Date(bookingEnd.value);
         const existingReservations = await loadAllReservations();
-        const dateRange = bookingStart.value+' 至 '+bookingEnd.value;
 
-        // 收集所有设备冲突
-        const conflictMsgs=[];
+        // 收集所有设备冲突（按设备分组，显示具体冲突日期）
+        const eqConflicts=[];  // [{eqName, days:[{date, users}]}]
         for(const [eqIdStr,qty] of eqEntries) {
           const eqId=parseInt(eqIdStr);
           const eqName=equipmentList.value.find(e=>e.id===eqId)?.name||eqId;
           const totalUnits=equipmentUnits.value.filter(u=>u.equipment_id===eqId);
           if(!totalUnits.length) continue;
 
-          let hasConflict=false;
-          const conflictUsers=new Set();
+          const conflictDays=[];
           for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)) {
             const dateStr=d.toISOString().slice(0,10);
             const occupiedIds=new Set();
+            const dayUsers=new Set();
             for(const r of existingReservations) {
               if(r.status!=='active') continue;
               if(dateStr<r.start_date||dateStr>r.end_date) continue;
@@ -411,17 +410,21 @@ const app = createApp({
               for(const sel of selections) {
                 if(sel.eq_id===eqId) {
                   (sel.unit_ids||[]).forEach(uid=>occupiedIds.add(uid));
-                  conflictUsers.add(r.user_name||'未知');
+                  dayUsers.add(r.user_name||'未知');
                 }
               }
             }
-            if(totalUnits.filter(u=>!occupiedIds.has(u.id)).length<qty) hasConflict=true;
+            if(totalUnits.filter(u=>!occupiedIds.has(u.id)).length<qty) {
+              conflictDays.push(dateStr+'：被 '+[...dayUsers].join('、')+' 占用');
+            }
           }
-          if(hasConflict) conflictMsgs.push(eqName+' 已被 '+[...conflictUsers].join('、')+' 预约，请调整计划或与预约人沟通，谢谢！');
+          if(conflictDays.length) {
+            eqConflicts.push(eqName+'\n'+conflictDays.join('\n'));
+          }
         }
 
-        if(conflictMsgs.length) {
-          bookingError.value = dateRange+'\n'+conflictMsgs.join('\n');
+        if(eqConflicts.length) {
+          bookingError.value = '设备冲突，请调整计划或与预约人沟通：\n'+eqConflicts.join('\n');
           bookingLoading.value=false; return;
         }
 
