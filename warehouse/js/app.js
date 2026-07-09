@@ -51,6 +51,7 @@ const app = createApp({
     const invNotes = ref({});
     const invMsg = ref('');
     const invMsgType = ref('');
+    const invRecords = ref([]);
 
     const roleName = computed(() => {
       const m = { user:'普通用户', admin:'管理员', super_admin:'超级管理员' };
@@ -137,7 +138,12 @@ const app = createApp({
     }
 
     async function loadAll() {
-      await Promise.all([loadItems(), loadTransactions()]);
+      await Promise.all([loadItems(), loadTransactions(), loadInventoryRecords()]);
+    }
+
+    async function loadInventoryRecords() {
+      const { data } = await supabase.from('warehouse_inventory_records').select('*,warehouse_items!inner(name,code)').order('created_at', { ascending: false }).limit(50);
+      if (data) invRecords.value = data;
     }
 
     // ===== 物品 CRUD =====
@@ -308,6 +314,7 @@ const app = createApp({
         invMsg.value = `盘点完成，${records.length} 项有差异已修正`;
         invMsgType.value = 'success';
         await loadItems();
+        await loadInventoryRecords();
       } catch (err) { showToast(err.message || '盘点失败', 'error'); }
       finally { saving.value = false; }
     }
@@ -337,7 +344,7 @@ const app = createApp({
       itemSearch, recordSearch, recordType,
       transItem, transType, transQty, transHandler, transPurpose, transNotes, transError,
       showItemForm, editingItem, itemForm,
-      invActual, invNotes, invMsg, invMsgType,
+      invActual, invNotes, invMsg, invMsgType, invRecords,
       roleName, stats, menu, filteredItems, filteredRecords,
       typeLabel, itemName,
       showToast, toggleMobile,
