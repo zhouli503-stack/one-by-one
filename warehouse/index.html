@@ -156,11 +156,12 @@
           <div class="page-header"><h2>库存盘点</h2></div>
           <div class="table-wrap">
             <table class="data-table">
-              <thead><tr><th>物品名称</th><th>编码</th><th>账面库存</th><th>实盘数量</th><th>差异</th><th>差异说明</th></tr></thead>
+              <thead><tr><th>物品名称</th><th>编码</th><th>需求人</th><th>账面库存</th><th>实盘数量</th><th>差异</th><th>差异说明</th></tr></thead>
               <tbody>
                 <tr v-for="it in items" :key="it.id">
                   <td><strong>{{ it.name }}</strong></td>
                   <td><code>{{ it.code }}</code></td>
+                  <td>{{ it.requester||'-' }}</td>
                   <td>{{ it.available_qty }}</td>
                   <td><input v-model.number="invActual[it.id]" type="number" min="0" class="inv-input" :placeholder="String(it.available_qty)"/></td>
                   <td :style="{color:(invActual[it.id]||it.available_qty)-it.available_qty!==0?'var(--warning)':'inherit'}">{{ (invActual[it.id]||it.available_qty)-it.available_qty }}</td>
