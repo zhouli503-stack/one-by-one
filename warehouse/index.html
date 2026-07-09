@@ -165,7 +165,7 @@
                   <td>{{ it.requester||'-' }}</td>
                   <td>{{ it.available_qty }}</td>
                   <td><input v-model.number="invActual[it.id]" type="number" min="0" class="inv-input" :placeholder="String(it.available_qty)"/></td>
-                  <td :style="{color:(invActual[it.id]||it.available_qty)-it.available_qty!==0?'var(--warning)':'inherit'}">{{ (invActual[it.id]||it.available_qty)-it.available_qty }}</td>
+                  <td :style="{color:(invActual[it.id]??it.available_qty)-it.available_qty!==0?'var(--warning)':'inherit'}">{{ (invActual[it.id]??it.available_qty)-it.available_qty }}</td>
                   <td><input v-model="invNotes[it.id]" type="text" class="inv-input" placeholder="有差异时填写原因"/></td>
                 </tr>
                 <tr v-if="filteredItems.length===0"><td colspan="7" class="empty-td">暂无匹配数据</td></tr>
