@@ -96,6 +96,19 @@ a:hover { color:var(--a-end); }
 }
 .search-input:focus { border-color:var(--a-mid); }
 
+/* ---- 出入库多选物品列表 ---- */
+.trans-item-list { max-height:400px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius); padding:4px; }
+.trans-item-row { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:var(--radius); cursor:pointer; transition:all 0.15s; }
+.trans-item-row:hover { background:var(--bg-hover); }
+.trans-item-row.selected { background:rgba(139,92,246,0.1); }
+.trans-item-info { display:flex; flex-direction:column; gap:1px; flex:1; min-width:0; }
+.trans-item-name { font-size:13px; }
+.trans-item-meta { font-size:11px; color:var(--text-tertiary); }
+.trans-item-meta code { font-size:11px; color:var(--a-end); }
+.trans-item-avail { font-size:12px; color:var(--text-secondary); white-space:nowrap; flex-shrink:0; }
+.trans-item-qty { width:60px; padding:4px 6px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-size:13px; text-align:center; outline:none; flex-shrink:0; }
+.trans-item-qty:focus { border-color:var(--a-mid); }
+
 /* ---- 按钮 ---- */
 .btn {
   display:inline-flex; align-items:center; justify-content:center; gap:6px;

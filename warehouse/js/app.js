@@ -33,13 +33,13 @@ const app = createApp({
     const recordType = ref('');
 
     // 出入库表单
-    const transItem = ref('');
+    const transSelections = ref({});  // { itemId: quantity }
     const transType = ref('');
-    const transQty = ref(1);
     const transHandler = ref('');
     const transPurpose = ref('');
     const transNotes = ref('');
     const transError = ref('');
+    const transSearch = ref('');
 
     // 物品表单
     const showItemForm = ref(false);
@@ -217,44 +217,66 @@ const app = createApp({
     }
 
     // ===== 借出/归还登记 =====
+    function toggleTransItem(itemId) {
+      if (transSelections.value[itemId]) {
+        const { ...rest } = transSelections.value;
+        delete rest[itemId];
+        transSelections.value = rest;
+      } else {
+        transSelections.value = { ...transSelections.value, [itemId]: 1 };
+      }
+    }
+    function setTransQty(itemId, qty) {
+      transSelections.value = { ...transSelections.value, [itemId]: Math.max(1, parseInt(qty) || 1) };
+    }
+    // 筛选出入库可用物品
+    const filteredTransItems = computed(() => {
+      if (!transSearch.value) return items.value;
+      const q = transSearch.value.toLowerCase();
+      return items.value.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        i.code.toLowerCase().includes(q) ||
+        (i.requester || '').toLowerCase().includes(q)
+      );
+    });
+
     async function submitTransaction() {
       transError.value = '';
-      if (!transItem.value) { transError.value = '请选择物品'; return; }
+      const entries = Object.entries(transSelections.value).filter(([_, q]) => q > 0);
+      if (!entries.length) { transError.value = '请选择物品'; return; }
       if (!transType.value) { transError.value = '请选择操作类型'; return; }
-      if (!transQty.value || transQty.value < 1) { transError.value = '请输入有效数量'; return; }
 
-      const item = items.value.find(i => i.id === transItem.value);
-      if (!item) return;
-
-      // 借出时检查库存
-      if (transType.value === 'lend' && transQty.value > item.available_qty) {
-        transError.value = `库存不足！当前可用 ${item.available_qty}，需要 ${transQty.value}`;
-        return;
+      // 借出时逐项检查库存
+      for (const [idStr, qty] of entries) {
+        const id = parseInt(idStr);
+        const item = items.value.find(i => i.id === id);
+        if (!item) continue;
+        if (transType.value === 'lend' && qty > item.available_qty) {
+          transError.value = `${item.name} 库存不足！当前可用 ${item.available_qty}，需要 ${qty}`;
+          return;
+        }
       }
 
       saving.value = true;
       try {
-        const delta = transType.value === 'lend' ? -transQty.value : transQty.value;
+        for (const [idStr, qty] of entries) {
+          const id = parseInt(idStr);
+          const item = items.value.find(i => i.id === id);
+          if (!item) continue;
+          const delta = transType.value === 'lend' ? -qty : qty;
 
-        // 写入操作记录
-        await supabase.from('warehouse_transactions').insert({
-          item_id: transItem.value,
-          type: transType.value,
-          quantity: transQty.value,
-          handler: transHandler.value || '',
-          purpose: transPurpose.value || '',
-          notes: transNotes.value || '',
-          operator_id: profile.value?.id
-        });
+          await supabase.from('warehouse_transactions').insert({
+            item_id: id, type: transType.value, quantity: qty,
+            handler: transHandler.value || '', purpose: transPurpose.value || '',
+            notes: transNotes.value || '', operator_id: profile.value?.id
+          });
 
-        // 更新库存（借出/归还不影响 total_qty）
-        await supabase.from('warehouse_items').update({
-          available_qty: item.available_qty + delta
-        }).eq('id', transItem.value);
-
+          await supabase.from('warehouse_items').update({
+            available_qty: item.available_qty + delta
+          }).eq('id', id);
+        }
         showToast('登记成功', 'success');
-        // 重置表单
-        transItem.value = ''; transType.value = ''; transQty.value = 1;
+        transSelections.value = {}; transType.value = '';
         transHandler.value = ''; transPurpose.value = ''; transNotes.value = '';
         await loadAll();
       } catch (err) { showToast(err.message || '操作失败', 'error'); }
@@ -342,7 +364,8 @@ const app = createApp({
       page, loggedIn, saving, mobileView, showNav, profile, toast,
       items, transactions, userList,
       itemSearch, recordSearch, recordType,
-      transItem, transType, transQty, transHandler, transPurpose, transNotes, transError,
+      transSelections, transType, transHandler, transPurpose, transNotes, transError, transSearch, filteredTransItems,
+      toggleTransItem, setTransQty,
       showItemForm, editingItem, itemForm,
       invActual, invNotes, invMsg, invMsgType, invRecords,
       roleName, stats, menu, filteredItems, filteredRecords,

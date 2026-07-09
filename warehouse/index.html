@@ -111,15 +111,31 @@
         <div v-if="page==='transaction'" class="page">
           <div class="page-header"><h2>借出/归还登记</h2></div>
           <div class="form-card">
-            <div class="form-group"><label>物品 *</label><select v-model="transItem"><option value="">-- 请选择 --</option><option v-for="it in items" :key="it.id" :value="it.id">{{ it.name }} ({{ it.code }}) - {{ it.requester||'未知' }}</option></select></div>
             <div class="form-group"><label>操作类型 *</label><select v-model="transType"><option value="">-- 请选择 --</option><option value="lend">借出</option><option value="return">归还</option></select></div>
-            <div class="form-group"><label>数量 *</label><input v-model.number="transQty" type="number" min="1" placeholder="输入数量"/></div>
             <div class="form-row">
               <div class="form-group"><label>经手人</label><input v-model="transHandler" type="text" placeholder="领用人/交接人"/></div>
               <div class="form-group"><label>用途说明</label><input v-model="transPurpose" type="text" placeholder="用途原因"/></div>
             </div>
             <div class="form-group"><label>备注</label><textarea v-model="transNotes" placeholder="补充说明"></textarea></div>
-            <button class="btn btn-primary" @click="submitTransaction" :disabled="saving">{{ saving?'提交中...':'确认登记' }}</button>
+
+            <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
+              <p style="font-size:13px;color:var(--text-tertiary);margin-bottom:10px;">选择物品并填写数量（可多选）</p>
+              <input v-model="transSearch" type="text" placeholder="搜索物品名称/编码/需求人..." class="search-input" style="margin-bottom:10px;"/>
+              <div class="trans-item-list">
+                <div v-for="it in filteredTransItems" :key="it.id" :class="['trans-item-row',{selected:transSelections[it.id]}]" @click="toggleTransItem(it.id)">
+                  <input type="checkbox" :checked="!!transSelections[it.id]" @click.stop="toggleTransItem(it.id)" style="accent-color:var(--a-mid);"/>
+                  <div class="trans-item-info">
+                    <span class="trans-item-name"><strong>{{ it.name }}</strong></span>
+                    <span class="trans-item-meta"><code>{{ it.code }}</code> {{ it.requester?'- '+it.requester:'' }}</span>
+                  </div>
+                  <span class="trans-item-avail">可用 {{ it.available_qty }}</span>
+                  <input v-if="transSelections[it.id]" v-model.number="transSelections[it.id]" type="number" min="1" class="trans-item-qty" @click.stop @input="setTransQty(it.id, $event.target.value)"/>
+                </div>
+                <div v-if="filteredTransItems.length===0" style="text-align:center;padding:30px;color:var(--text-tertiary);font-size:13px;">暂无匹配物品</div>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" @click="submitTransaction" :disabled="saving" style="margin-top:16px;">{{ saving?'提交中...':'确认登记' }}</button>
             <div v-if="transError" class="form-error">{{ transError }}</div>
           </div>
         </div>
