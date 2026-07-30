@@ -184,6 +184,13 @@ const app = createApp({
       if(!/^[a-zA-Z0-9._-]+$/.test(f.login_name)){ authError.value='登录名只能使用英文、数字、下划线和连字符'; return; }
       authLoading.value=true; authError.value='';
       try {
+        // 前置检查：登录名和工号是否已存在
+        const {data:existing}=await supabase.from('profiles').select('login_name,employee_id').or(`login_name.eq.${f.login_name},employee_id.eq.${f.employee_id}`).limit(1);
+        if(existing&&existing.length) {
+          const hit=existing[0];
+          if(hit.login_name===f.login_name) { authError.value='该登录名已被注册'; authLoading.value=false; return; }
+          if(hit.employee_id===f.employee_id) { authError.value='该工号已被注册'; authLoading.value=false; return; }
+        }
         const {error}=await supabase.auth.signUp({email:toEmail(f.login_name),password:f.password,options:{data:{login_name:f.login_name,full_name:f.full_name,employee_id:f.employee_id,department:f.department,division:f.division||'',region:f.region||''}}});
         if(error) throw error;
         showToast('注册成功，请登录','success');
