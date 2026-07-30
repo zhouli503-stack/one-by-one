@@ -189,7 +189,7 @@ const app = createApp({
         showToast('注册成功，请登录','success');
         page.value='login';
         loginForm.value.login_name=f.login_name;
-      } catch(err) { authError.value=err.message||'注册失败'; }
+      } catch(err) { authError.value=(typeof err.message==='string'&&err.message)?err.message:'注册失败，请检查信息是否重复或联系管理员'; }
       finally { authLoading.value=false; }
     }
 
